@@ -1,0 +1,20 @@
+---
+- name: configure ssh access on hosts
+  hosts: all
+  become: true
+
+  tasks:
+
+  - name: enable ssh service
+    service:
+      name: sshd.service
+      state: started
+      enabled: yes
+
+  - name: enable firewall port
+    ansible.posix.firewalld:
+      service: sshd
+      permanent: yes
+      state: enabled
+
+...
