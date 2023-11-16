@@ -92,7 +92,7 @@
 #        src: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 #        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 #      delegate_to: localhost
-      command: "rsync -av /reports/diff_reports {{ mgthost }}:/reports/"
+      command: "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /reports/diff_reports {{ mgthost }}:/reports/"
       delegate_to: localhost
   
     - name: Print a diff summary
