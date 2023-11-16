@@ -55,6 +55,10 @@
     - name: show reports tree
       shell: find /reports
       delegate_to: localhost
+      register: result
+
+    - debug:
+        var: result
     
     # You could be fancy and use the 'package_facts' module,
     # but command output is fine for quick and dirty diffs.
