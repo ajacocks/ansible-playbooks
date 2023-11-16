@@ -87,14 +87,14 @@
         src: "templates/diff_report.j2"
         dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 
-    - name: Copy out reports
+#    - name: Copy out reports
 #      copy:
 #        src: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 #        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 #      delegate_to: localhost
-      command: "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /reports/diff_reports {{ mgthost }}:/reports/"
-      become: false
-      delegate_to: localhost
+#      command: "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /reports/diff_reports {{ mgthost }}:/reports/"
+#      become: false
+#      delegate_to: localhost
   
     - name: Print a diff summary
       debug:
