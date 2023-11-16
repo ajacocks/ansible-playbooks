@@ -98,7 +98,7 @@
         msg: "Host {{ refhost }} -> {{ inventory_hostname }}, Config diffs {{ diff_result.stdout_lines | length }}, Package diffs {{ hostvars[refhost]['packagelist'] | symmetric_difference(packagelist) | length }}"
 
 - name: copy out reports
-  hosts: mgthost
+  hosts: vsphere-mgmt.jajcs.net
 
   tasks:
 
