@@ -115,6 +115,6 @@
 
     - name: Wrapping up
       debug:
-        msg: "Diff reports are under /reports/diff_reports/. Press Enter to finish the playbook"
+        msg: "Diff reports are under {{ inventory_hostname}:/reports/diff_reports/."
 
 ...
