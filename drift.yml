@@ -32,7 +32,7 @@
     - name: Fetch configs of interest across the environment, including the reference host
       fetch:
         src: "{{ item }}"
-        dest: host_configs
+        dest: "{{ playbook_dir }}/host_configs"
       loop: "{{ my_configs }}"
   
     # You could be fancy and use the 'package_facts' module,
