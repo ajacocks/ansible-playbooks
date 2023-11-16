@@ -52,14 +52,6 @@
         dest: "/reports/host_configs/"
       loop: "{{ my_configs }}"
 
-    - name: show reports tree
-      shell: find /reports
-      delegate_to: localhost
-      register: result
-
-    - debug:
-        var: result
-    
     # You could be fancy and use the 'package_facts' module,
     # but command output is fine for quick and dirty diffs.
     - name: Fetch RPM package detailed info
@@ -70,37 +62,28 @@
     - name: Save package info as server fact
       set_fact:
         packagelist: "{{ package_result.stdout_lines }}"
-  
-    # Diff command gives a nonzero return code on changes, so we account for that using changed_when
-    - name: On Ansible server, recursively diff the files of each host against the reference host
-#      delegate_to: "{{ mgthost }}"
-      delegate_to: localhost
-      shell:
-        cmd: "diff -r -y --suppress-common-lines /reports/host_configs/{{ refhost }} /reports/host_configs/{{ inventory_hostname }}"
-      register: diff_result
-      changed_when: diff_result.rc == 1
-      failed_when: diff_result.rc > 1
-      when: refhost is defined
-  
-    - name: Generate diff reports on Ansible server
-      delegate_to: localhost
-      template:
-        src: "templates/diff_report.j2"
-        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
-      when: refhost is defined
-
-#    - name: Copy out reports
-#      copy:
-#        src: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
-#        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
-#      delegate_to: localhost
-#      command: "rsync -e 'ssh -o StrictHostKeyChecking=no' -av /reports/diff_reports {{ mgthost }}:/reports/"
-#      become: false
-#      delegate_to: localhost
-  
-    - name: Print a diff summary
-      debug:
-        msg: "Host {{ refhost }} -> {{ inventory_hostname }}, Config diffs {{ diff_result.stdout_lines | length }}, Package diffs {{ hostvars[refhost]['packagelist'] | symmetric_difference(packagelist) | length }}"
+ 
+    - name: generate reports for hosts with a refhost defined
+      block:
+        # Diff command gives a nonzero return code on changes, so we account for that using changed_when
+        - name: On Ansible server, recursively diff the files of each host against the reference host
+    #      delegate_to: "{{ mgthost }}"
+          delegate_to: localhost
+          shell:
+            cmd: "diff -r -y --suppress-common-lines /reports/host_configs/{{ refhost }} /reports/host_configs/{{ inventory_hostname }}"
+          register: diff_result
+          changed_when: diff_result.rc == 1
+          failed_when: diff_result.rc > 1
+      
+        - name: Generate diff reports on Ansible server
+          delegate_to: localhost
+          template:
+            src: "templates/diff_report.j2"
+            dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
+    
+        - name: Print a diff summary
+          debug:
+            msg: "Host {{ refhost }} -> {{ inventory_hostname }}, Config diffs {{ diff_result.stdout_lines | length }}, Package diffs {{ hostvars[refhost]['packagelist'] | symmetric_difference(packagelist) | length }}"
       when: refhost is defined
 
 - name: Copy out reports
