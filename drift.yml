@@ -98,6 +98,6 @@
 
     - name: Wrapping up
       debug:
-        msg: "Diff reports are under {{ inventory_hostname}:/reports/diff_reports/."
+        msg: "Diff reports are under {{ inventory_hostname }}:/reports/diff_reports/."
 
 ...
