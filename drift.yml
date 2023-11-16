@@ -26,6 +26,7 @@
         - templates
       run_once: true
 #      delegate_to: "{{ mgthost }}"
+      delegate_to: localhost
 
 #    - name: copy out template
 #      copy:
