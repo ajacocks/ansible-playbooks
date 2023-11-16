@@ -34,6 +34,7 @@
         src: "{{ item }}"
         dest: "{{ playbook_dir }}/host_configs"
       loop: "{{ my_configs }}"
+      delegate_to: "{{ mgthost }}"
   
     # You could be fancy and use the 'package_facts' module,
     # but command output is fine for quick and dirty diffs.
