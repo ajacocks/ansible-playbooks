@@ -35,6 +35,10 @@
         dest: "/reports/host_configs"
       loop: "{{ my_configs }}"
       delegate_to: "{{ mgthost }}"
+      register: result
+    
+    - debug:
+        var: result
   
     # You could be fancy and use the 'package_facts' module,
     # but command output is fine for quick and dirty diffs.
