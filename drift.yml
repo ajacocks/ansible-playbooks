@@ -1,7 +1,7 @@
 ---
 
 - name: copy template
-  hosts: mgthost
+  hosts: localhost
   gather_facts: yes
 
   tasks:
@@ -18,11 +18,13 @@
         - diff_files
         - diff_reports
         - templates
+      delegate_to: "{{ mgthost }}"
 
     - name: copy out template
       copy:
         src: "templates/diff_report.j2"
         dest: "/reports/templates/"
+      delegate_to: "{{ mgthost }}"
 
 - name: Gather facts across hosts and compare to reference host
   hosts: all
