@@ -1,10 +1,16 @@
 ---
 
-- name: copy template
-  hosts: localhost
+- name: Gather facts across hosts and compare to reference host
+  hosts: all
   gather_facts: yes
 
-  tasks:
+  vars:
+    # List the full paths of the config files that we want to compare
+    my_configs:
+      - /etc/hosts
+      - /etc/ssh/sshd_config
+
+  pre_tasks:
 
     - debug:
         msg: "Storing content in /reports."
@@ -18,25 +24,15 @@
         - diff_files
         - diff_reports
         - templates
+      run_once: true
       delegate_to: "{{ mgthost }}"
 
     - name: copy out template
       copy:
         src: "templates/diff_report.j2"
         dest: "/reports/templates/"
+      run_once: true
       delegate_to: "{{ mgthost }}"
-
-- name: Gather facts across hosts and compare to reference host
-  hosts: all
-  gather_facts: yes
-
-  vars:
-    # List the full paths of the config files that we want to compare
-    my_configs:
-      - /etc/hosts
-      - /etc/ssh/sshd_config
-
-  pre_tasks:
 
   tasks:
   
