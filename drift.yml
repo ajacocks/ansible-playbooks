@@ -13,14 +13,14 @@
   pre_tasks:
 
     - debug:
-        msg: "Storing content in {{ playbook_dir }}."
+        msg: "Storing content in /reports."
 
     - name: Make staging folders on Ansible server
       delegate_to: "{{ mgthost }}"
       run_once: yes
       file:
         state: directory
-        path: "{{ playbook_dir }}/{{ item }}"
+        path: "/reports/{{ item }}"
       loop:
         - host_configs
         - diff_files
@@ -32,7 +32,7 @@
     - name: Fetch configs of interest across the environment, including the reference host
       fetch:
         src: "{{ item }}"
-        dest: "{{ playbook_dir }}/host_configs"
+        dest: "/reports/host_configs"
       loop: "{{ my_configs }}"
       delegate_to: "{{ mgthost }}"
   
@@ -51,7 +51,7 @@
     - name: On Ansible server, recursively diff the files of each host against the reference host
       delegate_to: "{{ mgthost }}"
       shell:
-        cmd: "diff -r -y --suppress-common-lines {{ playbook_dir }}/host_configs/{{ refhost }} {{ playbook_dir }}/host_configs/{{ inventory_hostname }}"
+        cmd: "diff -r -y --suppress-common-lines /reports/host_configs/{{ refhost }} /reports/host_configs/{{ inventory_hostname }}"
       register: diff_result
       changed_when: diff_result.rc == 1
       failed_when: diff_result.rc > 1
@@ -59,8 +59,8 @@
     - name: Generate diff reports on Ansible server
       delegate_to: "{{ mgthost }}"
       template:
-        src: "{{ playbook_dir }}/templates/diff_report.j2"
-        dest: "{{ playbook_dir }}/diff_reports/report_{{inventory_hostname}}.txt"
+        src: "/reports/templates/diff_report.j2"
+        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
   
     - name: Print a diff summary
       debug:
@@ -68,6 +68,6 @@
   
     - name: Wrapping up
       pause:
-        prompt: "Diff reports are under {{ playbook_dir }}/diff_reports/. Press Enter to finish the playbook"
+        prompt: "Diff reports are under /reports/diff_reports/. Press Enter to finish the playbook"
 
 ...
