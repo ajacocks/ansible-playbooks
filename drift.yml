@@ -87,25 +87,25 @@
         src: "templates/diff_report.j2"
         dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 
-    - name: Copy out report
-      copy:
-        src: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
-        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
-      delegate_to: localhost
+#    - name: Copy out report
+#      copy:
+#        src: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
+#        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
+#      delegate_to: localhost
   
     - name: Print a diff summary
       debug:
         msg: "Host {{ refhost }} -> {{ inventory_hostname }}, Config diffs {{ diff_result.stdout_lines | length }}, Package diffs {{ hostvars[refhost]['packagelist'] | symmetric_difference(packagelist) | length }}"
 
-#- name: copy out reports
-#  hosts: "{{ mgthost }}"
+- name: copy out reports
+  hosts: mgthost
 
-#  tasks:
+  tasks:
 
-#    - name: Copy out report
-#      copy:
-#        src: "/reports"
-#        dest: "/reports/"
+    - name: Copy out report
+      copy:
+        src: "/reports"
+        dest: "/reports/"
   
     - name: Wrapping up
       debug:
