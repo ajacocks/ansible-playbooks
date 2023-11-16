@@ -13,7 +13,7 @@
   pre_tasks:
 
     - name: Make staging folders on Ansible server
-      delegate_to: mgthost
+      delegate_to: "{{ mgthost }}"
       run_once: yes
       file:
         state: directory
@@ -45,7 +45,7 @@
   
     # Diff command gives a nonzero return code on changes, so we account for that using changed_when
     - name: On Ansible server, recursively diff the files of each host against the reference host
-      delegate_to: mgthost
+      delegate_to: "{{ mgthost }}"
       shell:
         cmd: "diff -r -y --suppress-common-lines {{ playbook_dir }}/host_configs/{{ refhost }} {{ playbook_dir }}/host_configs/{{ inventory_hostname }}"
       register: diff_result
@@ -53,7 +53,7 @@
       failed_when: diff_result.rc > 1
   
     - name: Generate diff reports on Ansible server
-      delegate_to: mgthost
+      delegate_to: "{{ mgthost }}"
       template:
         src: "{{ playbook_dir }}/templates/diff_report.j2"
         dest: "{{ playbook_dir }}/diff_reports/report_{{inventory_hostname}}.txt"
