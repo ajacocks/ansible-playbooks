@@ -101,6 +101,7 @@
     - name: Print a diff summary
       debug:
         msg: "Host {{ refhost }} -> {{ inventory_hostname }}, Config diffs {{ diff_result.stdout_lines | length }}, Package diffs {{ hostvars[refhost]['packagelist'] | symmetric_difference(packagelist) | length }}"
+      when: refhost is defined
 
     - name: Wrapping up
       debug:
