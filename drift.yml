@@ -32,7 +32,7 @@
     - name: Fetch configs of interest across the environment, including the reference host
       copy:
         src: "{{ item }}"
-        dest: "/reports/host_configs"
+        dest: "/reports/host_configs/{{ inventory_hostname }}/{{ item | dirname }}/"
         remote_src: true
       loop: "{{ my_configs }}"
       delegate_to: "{{ mgthost }}"
