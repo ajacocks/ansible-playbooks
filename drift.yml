@@ -62,7 +62,7 @@
           delegate_to: localhost
           template:
             src: "templates/diff_report.j2"
-            dest: "/reports/diff_reports/report_{{inventory_hostname}}-{{ timestamp|datefmt('yyyyMMdd-HHmmss') }}.txt"
+            dest: "/reports/diff_reports/report_{{ inventory_hostname }}-{{ ansible_date_time.iso8601 }}.txt"
     
         - name: Print a diff summary
           debug:
