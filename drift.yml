@@ -111,7 +111,7 @@
     - name: copy out reports
       copy:
         src: "/reports"
-        dest: "/reports"
+        dest: "/"
 
     - name: Wrapping up
       debug:
