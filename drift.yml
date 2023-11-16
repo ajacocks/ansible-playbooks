@@ -49,8 +49,12 @@
     - name: Fetch configs of interest across the environment, including the reference host
       fetch:
         src: "{{ item }}"
-        dest: host_configs
+        dest: "/reports/host_configs/"
       loop: "{{ my_configs }}"
+
+    - name: show reports tree
+      shell: find /reports
+      delegate_to: localhost
     
     # You could be fancy and use the 'package_facts' module,
     # but command output is fine for quick and dirty diffs.
