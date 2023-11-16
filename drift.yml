@@ -30,9 +30,10 @@
   
     # Destination is relative to the folder the playbook is sitting in.
     - name: Fetch configs of interest across the environment, including the reference host
-      fetch:
+      copy:
         src: "{{ item }}"
         dest: "/reports/host_configs"
+        remote_src: true
       loop: "{{ my_configs }}"
       delegate_to: "{{ mgthost }}"
       register: result
