@@ -1,5 +1,29 @@
 ---
 
+- name: copy template
+  hosts: mgthost
+  gather_facts: yes
+
+  tasks:
+
+    - debug:
+        msg: "Storing content in /reports."
+
+    - name: Make staging folders on Ansible server
+      file:
+        state: directory
+        path: "/reports/{{ item }}"
+      loop:
+        - host_configs
+        - diff_files
+        - diff_reports
+        - templates
+
+    - name: copy out template
+      copy:
+        src: "templates/diff_report.j2"
+        dest: "/reports/templates/"
+
 - name: Gather facts across hosts and compare to reference host
   hosts: all
   gather_facts: yes
@@ -11,20 +35,6 @@
       - /etc/ssh/sshd_config
 
   pre_tasks:
-
-    - debug:
-        msg: "Storing content in /reports."
-
-    - name: Make staging folders on Ansible server
-      delegate_to: "{{ mgthost }}"
-      run_once: yes
-      file:
-        state: directory
-        path: "/reports/{{ item }}"
-      loop:
-        - host_configs
-        - diff_files
-        - diff_reports
 
   tasks:
   
