@@ -12,6 +12,9 @@
 
   pre_tasks:
 
+    - debug:
+        msg: "Storing content in {{ playbook_dir }}."
+
     - name: Make staging folders on Ansible server
       delegate_to: "{{ mgthost }}"
       run_once: yes
