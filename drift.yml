@@ -38,14 +38,19 @@
   tasks:
   
     # Destination is relative to the folder the playbook is sitting in.
-    - name: Fetch configs of interest across the environment, including the reference host
-      copy:
-        src: "{{ item }}"
-        dest: "/reports/host_configs/{{ inventory_hostname }}/{{ item | dirname }}/"
-        remote_src: true
-      loop: "{{ my_configs }}"
+#    - name: Fetch configs of interest across the environment, including the reference host
+#      copy:
+#        src: "{{ item }}"
+#        dest: "/reports/host_configs/{{ inventory_hostname }}/{{ item | dirname }}/"
+#        remote_src: true
+#      loop: "{{ my_configs }}"
 #      delegate_to: "{{ mgthost }}"
-      delegate_to: localhost
+
+    - name: Fetch configs of interest across the environment, including the reference host
+      fetch:
+        src: "{{ item }}"
+        dest: host_configs
+      loop: "{{ my_configs }}"
     
     # You could be fancy and use the 'package_facts' module,
     # but command output is fine for quick and dirty diffs.
