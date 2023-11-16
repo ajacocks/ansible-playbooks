@@ -25,14 +25,14 @@
         - diff_reports
         - templates
       run_once: true
-      delegate_to: "{{ mgthost }}"
+#      delegate_to: "{{ mgthost }}"
 
-    - name: copy out template
-      copy:
-        src: "templates/diff_report.j2"
-        dest: "/reports/templates/"
-      run_once: true
-      delegate_to: "{{ mgthost }}"
+#    - name: copy out template
+#      copy:
+#        src: "templates/diff_report.j2"
+#        dest: "/reports/templates/"
+#      run_once: true
+#      delegate_to: "{{ mgthost }}"
 
   tasks:
   
@@ -43,12 +43,9 @@
         dest: "/reports/host_configs/{{ inventory_hostname }}/{{ item | dirname }}/"
         remote_src: true
       loop: "{{ my_configs }}"
-      delegate_to: "{{ mgthost }}"
-      register: result
+#      delegate_to: "{{ mgthost }}"
+      delegate_to: localhost
     
-    - debug:
-        var: result
-  
     # You could be fancy and use the 'package_facts' module,
     # but command output is fine for quick and dirty diffs.
     - name: Fetch RPM package detailed info
@@ -62,7 +59,8 @@
   
     # Diff command gives a nonzero return code on changes, so we account for that using changed_when
     - name: On Ansible server, recursively diff the files of each host against the reference host
-      delegate_to: "{{ mgthost }}"
+#      delegate_to: "{{ mgthost }}"
+      delegate_to: localhost
       shell:
         cmd: "diff -r -y --suppress-common-lines /reports/host_configs/{{ refhost }} /reports/host_configs/{{ inventory_hostname }}"
       register: diff_result
@@ -70,7 +68,8 @@
       failed_when: diff_result.rc > 1
   
     - name: Generate diff reports on Ansible server
-      delegate_to: "{{ mgthost }}"
+#      delegate_to: "{{ mgthost }}"
+      delegate_to: localhost
       template:
         src: "/reports/templates/diff_report.j2"
         dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
