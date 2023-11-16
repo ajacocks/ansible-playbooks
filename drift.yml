@@ -80,6 +80,7 @@
       register: diff_result
       changed_when: diff_result.rc == 1
       failed_when: diff_result.rc > 1
+      when: refhost is defined
   
     - name: Generate diff reports on Ansible server
       delegate_to: localhost
