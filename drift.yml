@@ -87,26 +87,18 @@
         src: "templates/diff_report.j2"
         dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 
-#    - name: Copy out report
+    - name: Copy out reports
 #      copy:
 #        src: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 #        dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
 #      delegate_to: localhost
+      command: "rsync -av /reports/diff_reports {{ mgthost }}:/reports/"
+      delegate_to: localhost
   
     - name: Print a diff summary
       debug:
         msg: "Host {{ refhost }} -> {{ inventory_hostname }}, Config diffs {{ diff_result.stdout_lines | length }}, Package diffs {{ hostvars[refhost]['packagelist'] | symmetric_difference(packagelist) | length }}"
 
-- name: copy out reports
-  hosts: "{{ mgthost }}"
-
-  tasks:
-
-    - name: Copy out report
-      copy:
-        src: "/reports"
-        dest: "/reports/"
-  
     - name: Wrapping up
       debug:
         msg: "Diff reports are under /reports/diff_reports/. Press Enter to finish the playbook"
