@@ -87,6 +87,7 @@
       template:
         src: "templates/diff_report.j2"
         dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
+      when: refhost is defined
 
 #    - name: Copy out reports
 #      copy:
