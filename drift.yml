@@ -7,7 +7,8 @@
   vars:
     # List the full paths of the config files that we want to compare
     my_configs:
-      - /etc/hosts
+      - /etc/issue
+      - /etc/issue.net
       - /etc/ssh/sshd_config
 
   pre_tasks:
@@ -25,27 +26,10 @@
         - diff_reports
         - templates
       run_once: true
-#      delegate_to: "{{ mgthost }}"
       delegate_to: localhost
-
-#    - name: copy out template
-#      copy:
-#        src: "templates/diff_report.j2"
-#        dest: "/reports/templates/"
-#      run_once: true
-#      delegate_to: "{{ mgthost }}"
 
   tasks:
   
-    # Destination is relative to the folder the playbook is sitting in.
-#    - name: Fetch configs of interest across the environment, including the reference host
-#      copy:
-#        src: "{{ item }}"
-#        dest: "/reports/host_configs/{{ inventory_hostname }}/{{ item | dirname }}/"
-#        remote_src: true
-#      loop: "{{ my_configs }}"
-#      delegate_to: "{{ mgthost }}"
-
     - name: Fetch configs of interest across the environment, including the reference host
       fetch:
         src: "{{ item }}"
@@ -67,7 +51,6 @@
       block:
         # Diff command gives a nonzero return code on changes, so we account for that using changed_when
         - name: On Ansible server, recursively diff the files of each host against the reference host
-    #      delegate_to: "{{ mgthost }}"
           delegate_to: localhost
           shell:
             cmd: "diff -r -y --suppress-common-lines /reports/host_configs/{{ refhost }} /reports/host_configs/{{ inventory_hostname }}"
@@ -79,7 +62,7 @@
           delegate_to: localhost
           template:
             src: "templates/diff_report.j2"
-            dest: "/reports/diff_reports/report_{{inventory_hostname}}.txt"
+            dest: "/reports/diff_reports/report_{{inventory_hostname}}-{{ timestamp|datefmt('yyyyMMdd-HHmmss') }}.txt"
     
         - name: Print a diff summary
           debug:
