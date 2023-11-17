@@ -120,6 +120,12 @@
         immediate: true
         state: enabled
 
+    - name: Create a symbolic link
+      ansible.builtin.file:
+        src: "/reports"
+        dest: "/var/www/html/reports"
+        state: link
+
     - name: Wrapping up
       debug:
         msg: "OpenSCAP reports are under {{ inventory_hostname }}:/reports/oscap/."
