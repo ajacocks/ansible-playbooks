@@ -14,58 +14,96 @@
       oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
       oscap_policy: "ssg-rhel9-ds"
 
+  pre_tasks:
+
+    - debug:
+        msg: "Storing content in /reports/oscap."
+
+    - name: Make staging folders on Ansible server
+      file:
+        state: directory
+        path: "/reports/{{ item }}"
+      loop:
+        - "oscap"
+      run_once: true
+      delegate_to: localhost
+
   tasks:
 
-    - name: Install openscap scanner
-      package:
-        name: "{{ item }}"
-        state: latest
-      with_items:
-        - openscap-scanner
-        - scap-security-guide
+    - name: only scan hosts that request it
+      block:
+        - name: Install openscap scanner
+          package:
+            name: "{{ item }}"
+            state: latest
+          with_items:
+            - openscap-scanner
+            - scap-security-guide
+    
+        - name: configure for RHEL 8
+          set_fact:
+            dir: "rhel8"
+            ssg: "ssg-rhel8-ds.xml"
+            oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
+          when:
+            - ansible_facts['distribution'] == "RedHat"
+            - ansible_facts['distribution_major_version'] == "8" 
+    
+        - name: configure for RHEL 9
+          set_fact:
+            dir: "rhel9"
+            ssg: "ssg-rhel9-ds.xml"
+            oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
+          when:
+            - ansible_facts['distribution'] == "RedHat"
+            - ansible_facts['distribution_major_version'] == "9" 
+    
+        - name: Copy tailoring files
+          copy:
+            src: "files/{{ dir }}/{{ item }}"
+            dest: "~/"
+          loop:
+            - "{{ ssg }}"
+            - "tailoring-xccdf.xml"
+    
+        - name: Run openscap to evaluate compliance
+          ansible.builtin.command:
+            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
+          ignore_errors: true
+          register: scap_cmd
+    
+        - name: Generate Ansible remediation playbook
+          ansible.builtin.command:
+            cmd: "oscap xccdf generate fix --fix-type ansible --profile {{ oscap_profile }} --tailoring-file ~/tailoring-xccdf.xml --output /tmp/oscap-remediation.yml /tmp/oscap-arf.xml"
+          ignore_errors: true
+          register: rem_cmd
+    
+        - name: Check for failure and escalate unless specified otherwise
+          ansible.builtin.fail:
+            msg: Security scan failed
+          when:
+            - scap_cmd.rc | int != 0
 
-    - name: configure for RHEL 8
-      set_fact:
-        dir: "rhel8"
-        ssg: "ssg-rhel8-ds.xml"
-        oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
-      when:
-        - ansible_facts['distribution'] == "RedHat"
-        - ansible_facts['distribution_major_version'] == "8" 
+      when: oscap_scan is defined
 
-    - name: configure for RHEL 9
-      set_fact:
-        dir: "rhel9"
-        ssg: "ssg-rhel9-ds.xml"
-        oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
-      when:
-        - ansible_facts['distribution'] == "RedHat"
-        - ansible_facts['distribution_major_version'] == "9" 
+    - name: Fetch configs of interest across the environment, including the reference host
+      fetch:
+        src: "/tmp/oscap-report.html"
+        dest: "/reports/oscap/"
 
-    - name: Copy tailoring files
+- name: Copy out reports
+  hosts: mgthost
+
+  tasks:
+
+    - name: copy out reports
       copy:
-        src: "files/{{ dir }}/{{ item }}"
-        dest: "~/"
-      loop:
-        - "{{ ssg }}"
-        - "tailoring-xccdf.xml"
+        src: "/reports"
+        dest: "/"
 
-    - name: Run openscap to evaluate compliance
-      ansible.builtin.command:
-        cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
-      ignore_errors: true
-      register: scap_cmd
+    - name: Wrapping up
+      debug:
+        msg: "OpenSCAP reports are under {{ inventory_hostname }}:/reports/oscap/."
 
-    - name: Generate Ansible remediation playbook
-      ansible.builtin.command:
-        cmd: "oscap xccdf generate fix --fix-type ansible --profile {{ oscap_profile }} --tailoring-file ~/tailoring-xccdf.xml --output /tmp/oscap-remediation.yml /tmp/oscap-arf.xml"
-      ignore_errors: true
-      register: rem_cmd
-
-    - name: Check for failure and escalate unless specified otherwise
-      ansible.builtin.fail:
-        msg: Security scan failed
-      when:
-        - scap_cmd.rc | int != 0
 
 ...
