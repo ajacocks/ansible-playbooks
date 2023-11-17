@@ -92,11 +92,18 @@
 
       when: oscap_scan is defined
 
-    - name: launch remediation when requested
-      block:
+- name: launch remediation when requested
+  import_playbook: /tmp/oscap-remediation.yml
+  when: oscap_remediate is defined
 
-        - name: launch remediation
-          import_playbook: /tmp/oscap-remediation.yml
+- name: install openscap and apply the stig to all hosts
+  hosts: all
+  become: true
+
+  tasks:
+
+    - name: re-evaluate compliance after remediation
+      block:
     
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
