@@ -6,9 +6,11 @@
 
   vars:
     rhel8:
+      dir: "rhel8"
       oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
       oscap_policy: "ssg-rhel8-ds"
     rhel9:
+      dir: "rhel9"
       oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
       oscap_policy: "ssg-rhel9-ds"
 
@@ -38,7 +40,7 @@
 
     - name: Copy tailoring files
       copy:
-        src: "files/{{ item }}"
+        src: "files/{{ dir }}/{{ item }}"
         dest: "~/"
       loop:
         - "{{ ssg }}"
