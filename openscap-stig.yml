@@ -87,13 +87,18 @@
 
         - name: Fetch configs of interest across the environment, including the reference host
           fetch:
+            src: "/tmp/oscap-remediation.yml"
+            dest: "/reports/oscap/"
+
+        - name: Fetch remediations
+          fetch:
             src: "/tmp/oscap-report-pre-remediate.html"
             dest: "/reports/oscap/"
 
       when: oscap_scan is defined
 
 - name: launch remediation when requested
-  import_playbook: /tmp/oscap-remediation.yml
+  import_playbook: "/reports/oscap/{{ inventory_hostname }}/tmp/oscap-remediation.yml"
   when: oscap_remediate is defined
 
 - name: install openscap and apply the stig to all hosts
