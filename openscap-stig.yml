@@ -141,7 +141,8 @@
 
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
-            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-post-remediate-{{ datestamp }}.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
+#            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-post-remediate-{{ datestamp }}.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
+            cmd: "oscap xccdf eval --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-post-remediate-{{ datestamp }}.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
           ignore_errors: true
           register: scap_cmd
 
