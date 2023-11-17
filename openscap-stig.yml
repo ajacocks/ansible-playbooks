@@ -137,7 +137,7 @@
 
     - name: Wrapping up
       debug:
-        msg: "OpenSCAP reports are under {{ inventory_hostname }}:/reports/oscap/."
+        msg: "OpenSCAP reports are under \"http://{{ inventory_hostname }}/reports/oscap\"."
 
 
 ...
