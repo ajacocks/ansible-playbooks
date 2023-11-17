@@ -69,7 +69,7 @@
     
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
-            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
+            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-pre-remediate.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
           ignore_errors: true
           register: scap_cmd
     
@@ -87,10 +87,29 @@
 
         - name: Fetch configs of interest across the environment, including the reference host
           fetch:
-            src: "/tmp/oscap-report.html"
+            src: "/tmp/oscap-report-pre-remediate.html"
             dest: "/reports/oscap/"
 
       when: oscap_scan is defined
+
+      - name: launch remediation when requested
+        block:
+
+        - name: launch remediation
+          import_playbook: /tmp/oscap-remediation.yml
+    
+        - name: Run openscap to evaluate compliance
+          ansible.builtin.command:
+            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-post-remediate.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
+          ignore_errors: true
+          register: scap_cmd
+
+        - name: Fetch configs of interest across the environment, including the reference host
+          fetch:
+            src: "/tmp/oscap-report-post-remediate.html"
+            dest: "/reports/oscap/"
+
+      when: oscap_remediate is defined
 
 - name: Copy out reports
   hosts: mgthost
