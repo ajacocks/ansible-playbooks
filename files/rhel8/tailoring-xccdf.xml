@@ -27,5 +27,7 @@ standard DISA STIG for Red Hat Enterprise Linux 8 profile.</xccdf:description>
     <xccdf:select idref="xccdf_org.ssgproject.content_rule_sysctl_crypto_fips_enabled" selected="false"/>
     <xccdf:select idref="xccdf_org.ssgproject.content_group_fips" selected="false"/>
     <xccdf:select idref="xccdf_org.ssgproject.content_rule_encrypt_partitions" selected="false"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_sudo_remove_nopasswd" selected="false"/>
+    <xccdf:select idref="xccdf_org.ssgproject.content_rule_sudoers_validate_passwd" selected="false"/>
   </xccdf:Profile>
 </xccdf:Tailoring>
