@@ -130,6 +130,7 @@
 
         - name: Include and execute Dynamic Tasks
           include_tasks: "/reports/oscap/{{ inventory_hostname }}-remediation-tasks.yml"
+          ignore_errors: true
 
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
