@@ -5,6 +5,7 @@
   become: true
 
   vars:
+    datestamp: "{{ ansible_date_time.iso8601 }}"
     rhel8:
       dir: "rhel8"
       oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
@@ -70,7 +71,7 @@
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
 #            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-pre-remediate.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
-            cmd: "oscap xccdf eval --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-pre-remediate.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
+            cmd: "oscap xccdf eval --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-pre-remediate-{{ datestamp }}.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
           ignore_errors: true
           register: scap_cmd
     
@@ -88,7 +89,7 @@
 
         - name: Fetch pre-remediation report
           fetch:
-            src: "/tmp/oscap-report-pre-remediate.html"
+            src: "/tmp/oscap-report-pre-remediate-{{ datestamp }}.html"
             dest: "/reports/oscap/"
 
         - name: Fetch remediations
@@ -134,13 +135,13 @@
 
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
-            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-post-remediate.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
+            cmd: "oscap xccdf eval --fetch-remote-resources --profile {{ oscap_profile }} --results-arf /tmp/oscap-arf.xml --report /tmp/oscap-report-post-remediate-{{ datestamp }}.html --tailoring-file ~/tailoring-xccdf.xml ~/{{ ssg }}"
           ignore_errors: true
           register: scap_cmd
 
         - name: Fetch configs of interest across the environment, including the reference host
           fetch:
-            src: "/tmp/oscap-report-post-remediate.html"
+            src: "/tmp/oscap-report-post-remediate-{{ datestamp }}.html"
             dest: "/reports/oscap/"
 
       when: oscap_remediate is defined
