@@ -126,10 +126,10 @@
           delegate_to: localhost
 
         - name: Include Dynamic Vars
-          include_vars: "oscap-reports/{{ vm_ip }}-remediation-vars.yml"
+          include_vars: "/reports/oscap/{{ inventory_hostname }}-remediation-vars.yml"
 
         - name: Include and execute Dynamic Tasks
-          include_tasks: "oscap-reports/{{ vm_ip }}-remediation-tasks.yml"
+          include_tasks: "/reports/oscap/{{ inventory_hostname }}-remediation-tasks.yml"
 
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
