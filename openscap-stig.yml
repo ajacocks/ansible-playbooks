@@ -84,12 +84,12 @@
 #          when:
 #            - scap_cmd.rc | int != 0
 
-      when: oscap_scan is defined
+        - name: Fetch configs of interest across the environment, including the reference host
+          fetch:
+            src: "/tmp/oscap-report.html"
+            dest: "/reports/oscap/"
 
-    - name: Fetch configs of interest across the environment, including the reference host
-      fetch:
-        src: "/tmp/oscap-report.html"
-        dest: "/reports/oscap/"
+      when: oscap_scan is defined
 
 - name: Copy out reports
   hosts: mgthost
