@@ -18,6 +18,7 @@
 
     - debug:
         msg: "Storing content in /reports/oscap."
+      run_once: true
 
     - name: Make staging folders on Ansible server
       file:
@@ -100,6 +101,23 @@
       copy:
         src: "/reports"
         dest: "/"
+
+    - name: install httpd
+      package:
+        name: httpd
+        state: present
+
+    - name: enable httpd
+      systemd:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: permit traffic in default zone for https service
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: enabled
 
     - name: Wrapping up
       debug:
