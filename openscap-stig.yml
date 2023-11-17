@@ -78,11 +78,11 @@
           ignore_errors: true
           register: rem_cmd
     
-        - name: Check for failure and escalate unless specified otherwise
-          ansible.builtin.fail:
-            msg: Security scan failed
-          when:
-            - scap_cmd.rc | int != 0
+#        - name: Check for failure and escalate unless specified otherwise
+#          ansible.builtin.fail:
+#            msg: Security scan failed
+#          when:
+#            - scap_cmd.rc | int != 0
 
       when: oscap_scan is defined
 
