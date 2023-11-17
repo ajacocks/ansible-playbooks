@@ -54,7 +54,8 @@
       ansible.builtin.command:
         argv:
           - "oscap"
-          - "xccdf eval"
+          - "xccdf"
+          - "eval"
           - "--profile {{ oscap_profile }}"
           - "--results-arf /tmp/oscap-arf.xml"
           - "--report /tmp/oscap-report.html"
@@ -67,7 +68,9 @@
       ansible.builtin.command:
         argv:
           - "oscap"
-          - "xccdf generate fix"
+          - "xccdf"
+          - "generate"
+          - "fix"
           - "--fix-type ansible"
           - "--profile {{ oscap_profile }}"
           - "--tailoring-file ~/tailoring-xccdf.xml"
