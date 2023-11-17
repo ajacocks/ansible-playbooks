@@ -126,6 +126,15 @@
         dest: "/var/www/html/reports"
         state: link
 
+    - name: Allow apache to read files in /reports
+      community.general.sefcontext:
+        target: '/reports(/.*)?'
+        setype: httpd_sys_content_t
+        state: present
+
+    - name: Apply new SELinux file context to filesystem
+      ansible.builtin.command: restorecon -irv /reports
+
     - name: Wrapping up
       debug:
         msg: "OpenSCAP reports are under {{ inventory_hostname }}:/reports/oscap/."
