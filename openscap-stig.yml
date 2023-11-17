@@ -131,7 +131,13 @@
 
         - name: Include and execute Dynamic Tasks
           include_tasks: "/reports/oscap/{{ inventory_hostname }}-remediation-tasks.yml"
-          ignore_errors: true
+      rescue:
+
+        - name: give error message on failed remediation
+          debug:
+            msg: "The remediation of this host failed. Please check the output from the above remediation playbook."
+
+      always:
 
         - name: Run openscap to evaluate compliance
           ansible.builtin.command:
