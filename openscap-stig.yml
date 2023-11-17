@@ -26,14 +26,18 @@
 
     - name: configure for RHEL 8
       set_fact:
+        dir: "rhel8"
         ssg: "ssg-rhel8-ds.xml"
+        oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
       when:
         - ansible_facts['distribution'] == "RedHat"
         - ansible_facts['distribution_major_version'] == "8" 
 
     - name: configure for RHEL 9
       set_fact:
+        dir: "rhel8"
         ssg: "ssg-rhel9-ds.xml"
+        oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
       when:
         - ansible_facts['distribution'] == "RedHat"
         - ansible_facts['distribution_major_version'] == "9" 
