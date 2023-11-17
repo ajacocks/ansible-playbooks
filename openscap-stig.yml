@@ -85,27 +85,52 @@
 #          when:
 #            - scap_cmd.rc | int != 0
 
-        - name: Fetch configs of interest across the environment, including the reference host
-          fetch:
-            src: "/tmp/oscap-remediation.yml"
-            dest: "/reports/oscap/"
-
-        - name: Fetch remediations
+        - name: Fetch pre-remediation report
           fetch:
             src: "/tmp/oscap-report-pre-remediate.html"
             dest: "/reports/oscap/"
 
+        - name: Fetch remediations
+          fetch:
+            src: "/tmp/oscap-remediation.yml"
+            dest: "/reports/oscap/"
+
       when: oscap_scan is defined
 
-- name: launch remediation when requested
-  import_playbook: "/reports/oscap/{{ inventory_hostname }}/tmp/oscap-remediation.yml"
-  when: oscap_remediate is defined
+    - name: do remediation
+      block:
 
-- name: install openscap and apply the stig to all hosts
-  hosts: all
-  become: true
+        - name: Read remediation playbook contents
+          command: "cat /reports/oscap/{{ inventory_hostname }}/tmp/oscap-remediation.yml"
+          register: remediation_text
+          delegate_to: localhost
 
-  tasks:
+        - name: Parse contents
+          set_fact:
+            remediation_contents: "{{ (remediation_text.stdout | from_yaml)[0] }}"
+        - name: Create Dynamic Tasks
+          ansible.builtin.copy:
+            dest: "/reports/oscap/{{ inventory_hostname }}-remediation-tasks.yml"
+            content: |
+              ---
+              {{ remediation_contents.tasks | to_nice_yaml }}
+          delegate_to: localhost
+
+        - name: Create Dynamic Vars
+          ansible.builtin.copy:
+            dest: "/reports/oscap/{{ inventory_hostname }}-remediation-vars.yml"
+            content: |
+              ---
+              {{ remediation_contents.vars | to_nice_yaml }}
+          delegate_to: localhost
+
+        - name: Include Dynamic Vars
+          include_vars: "oscap-reports/{{ vm_ip }}-remediation-vars.yml"
+
+        - name: Include and execute Dynamic Tasks
+          include_tasks: "oscap-reports/{{ vm_ip }}-remediation-tasks.yml"
+
+      when: oscap_remediate is defined
 
     - name: re-evaluate compliance after remediation
       block:
