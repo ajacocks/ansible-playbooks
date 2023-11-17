@@ -35,7 +35,7 @@
 
     - name: configure for RHEL 9
       set_fact:
-        dir: "rhel8"
+        dir: "rhel9"
         ssg: "ssg-rhel9-ds.xml"
         oscap_profile: "xccdf_org.ssgproject.content_profile_stig_gui_customized"
       when:
