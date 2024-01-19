@@ -13,4 +13,15 @@
 
     - name: shell test
       shell: whoami
+
+    - name: Ping Output
+      shell: ping -c 2 {{ip}}
+      ignore_errors: true
+      register: op
+
+    - name: ping output
+      debug:
+        var: op
+
+
 ...
