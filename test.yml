@@ -8,4 +8,9 @@
       debug:
         msg: "this is a test"
 
+    - name: command test
+      command: whoami
+
+    - name: shell test
+      shell: whoami
 ...
