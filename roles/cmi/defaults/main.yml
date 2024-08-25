@@ -1,0 +1,6 @@
+---
+# defaults file for cmi
+
+cmi_build_in_build: false
+
+...

@@ -1,0 +1,20 @@
+--- orig/md5sums	2024-08-23 19:03:32.586670378 -0400
++++ fixed/md5sums	2024-08-23 18:39:18.606789598 -0400
+@@ -13,7 +13,7 @@
+ 2745c50f6f4e395e7b7d52f902d075bf  diffutils-3.10.tar.xz
+ 6b4f18a33873623041857b4963641ee9  e2fsprogs-1.47.0.tar.gz
+ 79ad698e61a052bea79e77df6a08bc4b  elfutils-0.190.tar.bz2
+-bd169cb11f4b9bdfddadf9e88a5c4d4b  expat-2.6.0.tar.xz
++0cb75c8feb842c0794ba89666b762a2d  expat-2.6.2.tar.xz
+ 00fce8de158422f5ccd2666512329bd2  expect5.45.4.tar.gz
+ 26b2a96d4e3a8938827a1e572afd527a  file-5.45.tar.gz
+ 4a4a547e888a944b2f3af31d789a1137  findutils-4.9.0.tar.xz
+@@ -81,7 +81,7 @@
+ 79dfe62be5d347b1325cbd5ce2a1f9b3  vim-9.1.0041.tar.gz
+ 802ad6e5f9336fcb1c76b7593f0cd22d  wheel-0.42.0.tar.gz
+ 89a8e82cfd2ad948b349c0a69c494463  XML-Parser-2.47.tar.gz
+-7ade7bd1181a731328f875bec62a9377  xz-5.4.6.tar.xz
++315da7794c37ba347aaef7c58cadd3dd  xz-5.4.7.tar.xz
+ 9855b6d802d7fe5b7bd5b196a2271655  zlib-1.3.1.tar.gz
+ 63251602329a106220e0a5ad26ba656f  zstd-1.5.5.tar.gz
+ 2d1691a629c558e894dbb78ee6bf34ef  bash-5.2.21-upstream_fixes-1.patch

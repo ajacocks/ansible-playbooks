@@ -1,0 +1,110 @@
+---
+# tasks file for cmi
+
+- name: Extract {{ cmi_archive }}
+  ansible.builtin.unarchive:
+    src: "{{ lfs }}/sources/{{ cmi_archive }}"
+    dest: '{{ lfs }}/sources'
+    list_files: true
+  register: unarchive
+
+- name: Define extract_dir
+  ansible.builtin.command: echo "{{ lfs }}/sources/{{ unarchive.files[0] | regex_replace('/.*', '') }}"
+  register: extract_dir
+  changed_when: false
+
+- name: Define build dir
+  ansible.builtin.command: echo "{{ extract_dir.stdout }}"
+  register: build_path
+  changed_when: false
+  when: cmi_build_in_build is false
+
+- name: Define build dir for subdir
+  ansible.builtin.command: echo "{{ extract_dir.stdout }}/build"
+  register: build_path
+  changed_when: false
+  when: cmi_build_in_build is true
+
+- debug:
+    msg: "Extract directory is {{ extract_dir.stdout }}."
+
+- debug:
+    msg: "Build path is {{ build_path.stdout }}."
+
+- name: Run extra unarchive commands
+  ansible.builtin.shell: |
+    {{ cmi_unarchive_extra }}
+  args:
+    chdir: "{{ extract_dir.stdout }}"
+  when: cmi_unarchive_extra is defined
+  environment: "{{ proxy_env }}"
+  register: unarchive_extra
+
+- debug:
+    var: unarchive_extra
+  when: cmi_unarchive_extra is defined
+
+- name: Handle build in subdirectory
+  when: cmi_build_in_build is true
+  block:
+    - name: Create dir {{ build_path.stdout }}
+      ansible.builtin.file:
+        path: '{{ build_path.stdout }}'
+        state: directory
+        mode: '0755'
+
+- name: Execute configure
+  ansible.builtin.shell: |
+    {{ cmi_configure_command }}
+  args:
+    chdir: "{{ build_path.stdout }}"
+    creates: config.status
+  environment: "{{ proxy_env }}"
+  register: cmi_config_result
+
+- debug:
+    var: cmi_config_result.stdout_lines
+
+- name: Execute make
+  ansible.builtin.shell: |
+    make -j {{ gcc.jobs }} && touch .made
+  args:
+    chdir: "{{ build_path.stdout }}"
+    creates: .made
+  environment: "{{ proxy_env }}"
+  register: cmi_make_result
+
+- debug:
+    var: cmi_make_result.stdout_lines
+
+- name: Execute make install
+  ansible.builtin.shell: |
+    make install && touch .installed
+  args:
+    chdir: "{{ build_path.stdout }}"
+    creates: .installed
+  environment: "{{ proxy_env }}"
+  register: cmi_makeinstall_result
+
+- debug:
+    var: cmi_makeinstall_result.stdout_lines
+
+- debug:
+    var: cmi_postinstall
+  when: cmi_postinstall is defined
+
+- name: Run postinstall commands
+  ansible.builtin.shell: |
+    {{ cmi_postinstall }}
+    if [ $? -eq 0 ]; then touch .postinstalled; fi
+  args:
+    chdir: "{{ extract_dir.stdout }}"
+    creates: .postinstalled
+  when: cmi_postinstall is defined
+  environment: "{{ proxy_env }}"
+  register: cmi_postinstall_result
+
+- debug:
+    var: cmi_postinstall_result.stdout_lines
+
+...

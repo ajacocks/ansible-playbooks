@@ -1,0 +1,363 @@
+---
+
+- name: Build an LFS 12.1 systemd image
+  hosts: localhost
+  become: true
+
+  vars:
+    lfs: /mnt/lfs
+    gcc:
+#      triplet: x86_64-pc-linux-gnu
+      lfstriplet: i586-lfs-linux-gnu
+      triplet: i586-pc-linux-gnu
+      jobs: "{{ ( ansible_processor|length|int/3 ) | int }}"
+    devices:
+      disk:
+        device: /dev/loop0
+        prefix: /dev/loop0p
+        unit: GiB
+        type: loop
+        file: /home/ajacocks/lfs-systemd.img
+        size: 50
+        boot:
+          id: 1
+          size: 1
+          format: ext4
+          type: ext4
+          mountpoint: "{{ lfs }}/boot"
+        swap:
+          id: 2
+          size: 2
+          format: swap
+          type: linux-swap
+        root:
+          id: 3
+          size: fill
+          format: ext4
+          type: ext4
+          mountpoint: "{{ lfs }}"
+    proxy_env:
+      LFS: "/mnt/lfs"
+      LC_ALL: "POSIX"
+      LFS_TGT: "{{ gcc.lfstriplet }}"
+      PATH: "{{ lfs }}/tools/bin:/usr/bin"
+
+  tasks:
+
+    - name: Do prerequisite tasks
+      block:
+        - name: Copy over version check script
+          ansible.builtin.copy:
+            src: version-check.sh
+            dest: /tmp/version-check.sh
+            mode: '0755'
+
+        - name: Run version check script
+          ansible.builtin.command: /tmp/version-check.sh
+          register: version_check
+          failed_when: version_check.rc != 0
+          changed_when: false
+
+        - name: Print debugging message
+          ansible.builtin.debug:
+            var: version_check.stdout_lines
+
+    - name: Do loopback file setup
+      when: devices.disk.type == "loop"
+      block:
+
+        - name: If device.disk.type is loop, create the file device.disk.file with size devices.disk.swap.size
+          community.general.filesize:
+            path: "{{ devices.disk.file }}"
+            size: "{{ devices.disk.size }} {{ devices.disk.unit }}"
+            sparse: true
+
+        - name: Check to see if the specified file exists as a loop device
+          ansible.builtin.command: losetup -j {{ devices.disk.file }}
+          register: losetup_result
+          changed_when: false
+
+        - name: Print debugging message
+          ansible.builtin.debug:
+            var: losetup_result
+          when: debug is defined
+
+        - name: Create a loop device if not
+          ansible.builtin.command: losetup -Pf {{ devices.disk.file }} --show
+          when: losetup_result.stdout is not regex("^/dev/loop")
+          register: losetup_create_result
+          changed_when: losetup_create_result.rc == 0
+          failed_when: losetup_create_result.rc != 0
+
+        - name: Print debugging message
+          ansible.builtin.debug:
+            var: losetup_create_result
+          when: debug is defined
+
+        - name: Register loop device (existing)
+          ansible.utils.update_fact:
+            updates:
+              - path: devices.disk.device
+                value: "{{ losetup_result.stdout | regex_replace(':.*', '') }}"
+              - path: devices.disk.prefix
+                value: "{{ losetup_result.stdout | regex_replace(':.*', '') }}p"
+          when: losetup_result.stdout is regex("^/dev/loop")
+
+        - name: Register loop device (not existing)
+          ansible.utils.update_fact:
+            updates:
+              - path: devices.disk.device
+                value: "{{ losetup_create_result.stdout }}"
+              - path: devices.disk.prefix
+                value: "{{ losetup_create_result.stdout }}p"
+          when: losetup_result.stdout is not regex("^/dev/loop")
+
+    - name: Create paritions and mount them
+      block:
+        - name: Create a new boot partition
+          community.general.parted:
+            device: "{{ devices.disk.device }}"
+            number: "{{ devices.disk.boot.id }}"
+            state: present
+            flags: [boot]
+            fs_type: "{{ devices.disk.boot.type }}"
+            part_end: "{{ devices.disk.boot.size }}{{ devices.disk.unit }}"
+
+        - name: Read device information
+          community.general.parted:
+            device: "{{ devices.disk.device }}"
+          register: disk_info
+
+        - ansible.builtin.debug:
+            var: disk_info
+
+        - name: Create a new swap partition
+          community.general.parted:
+            device: "{{ devices.disk.device }}"
+            number: "{{ devices.disk.swap.id }}"
+            state: present
+            fs_type: "{{ devices.disk.swap.type }}"
+            part_start: "{{ devices.disk.boot.size }}{{ devices.disk.unit }}"
+            part_end: "{{ devices.disk.swap.size | int + devices.disk.boot.size | int }}{{ devices.disk.unit }}"
+
+        - name: Read device information
+          community.general.parted:
+            device: "{{ devices.disk.device }}"
+          register: disk_info
+
+        - ansible.builtin.debug:
+            var: disk_info
+
+        - name: Create a new root partition
+          community.general.parted:
+            device: "{{ devices.disk.device }}"
+            number: "{{ devices.disk.root.id }}"
+            state: present
+            fs_type: "{{ devices.disk.root.type }}"
+            part_start: "{{ devices.disk.swap.size | int + devices.disk.boot.size | int }}{{ devices.disk.unit }}"
+            part_end: "100%"
+
+        - name: Read device information
+          community.general.parted:
+            device: "{{ devices.disk.device }}"
+          register: disk_info
+
+        - ansible.builtin.debug:
+            var: disk_info
+
+        - name: Format all partitions created on disk
+          community.general.filesystem:
+            fstype: "{{ devices['disk'][item]['format'] }}"
+            dev: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
+            opts: "-L lfs{{ item }}"
+          loop:
+            - boot
+            - swap
+            - root
+
+        - name: Mount root and boot partitions
+          ansible.posix.mount:
+            path: "{{ devices['disk'][item]['mountpoint'] }}"
+            src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
+            fstype: "{{ devices['disk'][item]['format'] }}"
+            state: mounted
+          loop:
+            - root
+            - boot
+
+    - name: Create lfs/sources directory
+      ansible.builtin.file:
+        path: '{{ lfs }}/sources'
+        state: directory
+        mode: '0755'
+
+    - name: Download and verify all needed files
+      block:
+        - name: Download the list of files to be retrieved and the md5sums to verify them
+          ansible.builtin.get_url:
+            url: "{{ item.url }}"
+            dest: "{{ lfs }}/sources/{{ item.name }}"
+    #        checksum: "{{ item.md5sum }}"
+            mode: '0644'
+          loop:
+            - name: wget-list
+              url:
+                https://www.linuxfromscratch.org/lfs/downloads/stable/wget-list
+    #          md5sum:
+    #            sha256:5120567557777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
+            - name: md5sums
+              url:
+                https://www.linuxfromscratch.org/lfs/downloads/stable/md5sums
+
+        - name: Apply patch to multiple files under basedir
+          ansible.posix.patch:
+            src: "{{ item }}.patch"
+            basedir: "{{ lfs }}/sources"
+            strip: 1
+            backup: true
+          loop:
+            - wget-list
+            - md5sums
+
+        - name: Register file names
+          ansible.builtin.set_fact:
+            wgetlistpath: "{{ lfs }}/sources/wget-list"
+            md5sumspath: "{{ lfs }}/sources/md5sums"
+
+        - name: Verify all files are correct
+          ansible.builtin.command:
+            cmd: md5sum -c md5sums
+            chdir: "{{ lfs }}/sources"
+          register: premd5sum
+          changed_when: false
+
+        - name: Download each file listed in wget-list and verify it with the same line in md5sums
+          ansible.builtin.get_url:
+            url: "{{ item }}"
+            dest: "{{ lfs }}/sources/{{ item | regex_replace('^.*/', '') }}"
+            mode: '0644'
+          loop: "{{ lookup('file', wgetlistpath).splitlines() }}"
+          when: premd5sum.rc != 0
+
+        - name: Verify all files are correct
+          ansible.builtin.command:
+            cmd: md5sum -c md5sums
+            chdir: "{{ lfs }}/sources"
+          register: md5sum
+          failed_when: md5sum.rc != 0
+          changed_when: false
+
+    - name: Prep destination volume
+      block:
+        - name: Create lfs directory structure
+          ansible.builtin.file:
+            path: "{{ lfs }}/{{ item }}"
+            state: directory
+            mode: '0755'
+          loop:
+            - etc
+            - tools
+            - usr
+            - usr/bin
+            - usr/lib
+            - usr/sbin
+            - var
+
+        - name: Create lfs directory structure symlinks
+          ansible.builtin.file:
+            src: "{{ lfs }}/usr/{{ item }}"
+            path: "{{ lfs }}/{{ item }}"
+            state: link
+          loop:
+            - bin
+            - lib
+            - sbin
+
+        - name: Create group lfs
+          ansible.builtin.group:
+            name: lfs
+            state: present
+
+        - name: Create user lfs with group lfs
+          ansible.builtin.user:
+            name: lfs
+            group: lfs
+            home: "{{ lfs }}"
+            shell: /bin/bash
+            create_home: true
+            state: present
+
+        - name: Create lfs .bashrc from bashrc.j2 template
+          ansible.builtin.template:
+            src: bashrc.j2
+            dest: '{{ lfs }}/.bashrc'
+            mode: '0644'
+
+        - name: Symlink lfs .bashrc to .bash_profile
+          ansible.builtin.file:
+            src: '{{ lfs }}/.bashrc'
+            dest: '{{ lfs }}/.bash_profile'
+            state: link
+
+    - name: Build binutils-2.42.tar.xz
+      ansible.builtin.import_role:
+        name: cmi
+      vars:
+        cmi_archive: binutils-2.42.tar.xz
+        cmi_configure_command: |
+          ../configure --prefix=$LFS/tools \
+          --with-sysroot=$LFS \
+          --target=$LFS_TGT \
+          --disable-nls \
+          --enable-gprofng=no \
+          --disable-werror \
+          --enable-default-hash-style=gnu
+        cmi_build_in_build: true
+
+    - name: Build gcc-13.2.0.tar.xz
+      ansible.builtin.import_role:
+        name: cmi
+      vars:
+        cmi_archive: gcc-13.2.0.tar.xz
+        cmi_postinstall: |
+          cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
+          `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/include/limits.h
+        cmi_unarchive_extra: |
+          pwd
+          ls ..
+          if [ ! -d mpfr ]; then
+            tar -xf ../mpfr-4.2.1.tar.xz
+            mv -v mpfr-4.2.1 mpfr
+          fi
+          if [ ! -d gmp ]; then
+            tar -xf ../gmp-6.3.0.tar.xz
+            mv -v gmp-6.3.0 gmp
+          fi
+          if [ ! -d mpc ]; then
+            tar -xf ../mpc-1.3.1.tar.gz
+            mv -v mpc-1.3.1 mpc
+          fi
+        cmi_configure_command: |
+          ../configure              \
+          --target=$LFS_TGT         \
+          --prefix=$LFS/tools       \
+          --with-glibc-version=2.39 \
+          --with-sysroot=$LFS       \
+          --with-newlib             \
+          --without-headers         \
+          --enable-default-pie      \
+          --enable-default-ssp      \
+          --disable-nls             \
+          --disable-shared          \
+          --disable-multilib        \
+          --disable-threads         \
+          --disable-libatomic       \
+          --disable-libgomp         \
+          --disable-libquadmath     \
+          --disable-libssp          \
+          --disable-libvtv          \
+          --disable-libstdcxx       \
+          --enable-languages=c,c++
+        cmi_build_in_build: true
+
+...
