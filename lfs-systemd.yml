@@ -2,12 +2,12 @@
 
 - name: Build an LFS 12.1 systemd image
   hosts: localhost
-  become: true
+  become: false
 
   vars:
     lfs: /mnt/lfs
     gcc:
-#      triplet: x86_64-pc-linux-gnu
+#     triplet: x86_64-pc-linux-gnu
       lfstriplet: i586-lfs-linux-gnu
       triplet: i586-pc-linux-gnu
       jobs: "{{ ( ansible_processor|length|int/3 ) | int }}"
@@ -122,14 +122,12 @@
             flags: [boot]
             fs_type: "{{ devices.disk.boot.type }}"
             part_end: "{{ devices.disk.boot.size }}{{ devices.disk.unit }}"
+          become: true
 
         - name: Read device information
           community.general.parted:
             device: "{{ devices.disk.device }}"
           register: disk_info
-
-        - ansible.builtin.debug:
-            var: disk_info
 
         - name: Create a new swap partition
           community.general.parted:
@@ -139,14 +137,12 @@
             fs_type: "{{ devices.disk.swap.type }}"
             part_start: "{{ devices.disk.boot.size }}{{ devices.disk.unit }}"
             part_end: "{{ devices.disk.swap.size | int + devices.disk.boot.size | int }}{{ devices.disk.unit }}"
+          become: true
 
         - name: Read device information
           community.general.parted:
             device: "{{ devices.disk.device }}"
           register: disk_info
-
-        - ansible.builtin.debug:
-            var: disk_info
 
         - name: Create a new root partition
           community.general.parted:
@@ -156,13 +152,15 @@
             fs_type: "{{ devices.disk.root.type }}"
             part_start: "{{ devices.disk.swap.size | int + devices.disk.boot.size | int }}{{ devices.disk.unit }}"
             part_end: "100%"
+          become: true
 
         - name: Read device information
           community.general.parted:
             device: "{{ devices.disk.device }}"
           register: disk_info
 
-        - ansible.builtin.debug:
+        - name: Display disk info after partitioning
+          ansible.builtin.debug:
             var: disk_info
 
         - name: Format all partitions created on disk
@@ -181,30 +179,79 @@
             src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
             fstype: "{{ devices['disk'][item]['format'] }}"
             state: mounted
+          become: true
           loop:
             - root
             - boot
+    - name: Create group lfs
+      ansible.builtin.group:
+        name: lfs
+        state: present
+
+    - name: Create user lfs with group lfs
+      ansible.builtin.user:
+        name: lfs
+        group: lfs
+        home: "{{ lfs }}"
+        shell: /bin/bash
+        create_home: true
+        state: present
+      register: user_result
+    
+    - debug:
+        var: user_result
+
+    - name: Get stats of a  file
+      ansible.builtin.stat:
+        path: '{{ lfs }}'
+      register: st
+
+    - debug:
+        var: st
+
+    - name: Set permissions on lfs to owner lfs group lfs
+      ansible.builtin.file:
+        path: "{{ lfs }}"
+        owner: lfs
+        group: lfs
+        mode: '0755'
+        recurse: true
+      become: true
+      when: st.stat.uid != user_result.uid
+
+    - name: Create lfs ansible temp directory
+      ansible.builtin.file:
+        path: '{{ lfs }}/.ansible/tmp'
+        state: directory
+        mode: '0700'
+        owner: lfs
+        group: lfs
+      become: true
+      become_user: lfs
 
     - name: Create lfs/sources directory
       ansible.builtin.file:
         path: '{{ lfs }}/sources'
         state: directory
         mode: '0755'
+        owner: lfs
+        group: lfs
+      become: true
+      become_user: lfs
 
     - name: Download and verify all needed files
+      become: true
+      become_user: lfs
       block:
         - name: Download the list of files to be retrieved and the md5sums to verify them
           ansible.builtin.get_url:
             url: "{{ item.url }}"
             dest: "{{ lfs }}/sources/{{ item.name }}"
-    #        checksum: "{{ item.md5sum }}"
             mode: '0644'
           loop:
             - name: wget-list
               url:
                 https://www.linuxfromscratch.org/lfs/downloads/stable/wget-list
-    #          md5sum:
-    #            sha256:5120567557777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777
             - name: md5sums
               url:
                 https://www.linuxfromscratch.org/lfs/downloads/stable/md5sums
@@ -224,20 +271,12 @@
             wgetlistpath: "{{ lfs }}/sources/wget-list"
             md5sumspath: "{{ lfs }}/sources/md5sums"
 
-        - name: Verify all files are correct
-          ansible.builtin.command:
-            cmd: md5sum -c md5sums
-            chdir: "{{ lfs }}/sources"
-          register: premd5sum
-          changed_when: false
-
         - name: Download each file listed in wget-list and verify it with the same line in md5sums
           ansible.builtin.get_url:
             url: "{{ item }}"
             dest: "{{ lfs }}/sources/{{ item | regex_replace('^.*/', '') }}"
             mode: '0644'
           loop: "{{ lookup('file', wgetlistpath).splitlines() }}"
-          when: premd5sum.rc != 0
 
         - name: Verify all files are correct
           ansible.builtin.command:
@@ -248,6 +287,8 @@
           changed_when: false
 
     - name: Prep destination volume
+      become: true
+      become_user: lfs
       block:
         - name: Create lfs directory structure
           ansible.builtin.file:
@@ -273,20 +314,6 @@
             - lib
             - sbin
 
-        - name: Create group lfs
-          ansible.builtin.group:
-            name: lfs
-            state: present
-
-        - name: Create user lfs with group lfs
-          ansible.builtin.user:
-            name: lfs
-            group: lfs
-            home: "{{ lfs }}"
-            shell: /bin/bash
-            create_home: true
-            state: present
-
         - name: Create lfs .bashrc from bashrc.j2 template
           ansible.builtin.template:
             src: bashrc.j2
@@ -299,65 +326,112 @@
             dest: '{{ lfs }}/.bash_profile'
             state: link
 
-    - name: Build binutils-2.42.tar.xz
-      ansible.builtin.import_role:
-        name: cmi
-      vars:
-        cmi_archive: binutils-2.42.tar.xz
-        cmi_configure_command: |
-          ../configure --prefix=$LFS/tools \
-          --with-sysroot=$LFS \
-          --target=$LFS_TGT \
-          --disable-nls \
-          --enable-gprofng=no \
-          --disable-werror \
-          --enable-default-hash-style=gnu
-        cmi_build_in_build: true
+    - name: Build packages for lfs
+      become: true
+      become_user: lfs
+      block:
+        - name: Build binutils-2.42.tar.xz
+          ansible.builtin.import_role:
+            name: cmi
+          vars:
+            cmi_archive: binutils-2.42.tar.xz
+            cmi_configure_command: |
+              ../configure --prefix=$LFS/tools \
+              --with-sysroot=$LFS \
+              --target=$LFS_TGT \
+              --disable-nls \
+              --enable-gprofng=no \
+              --disable-werror \
+              --enable-default-hash-style=gnu
+            cmi_build_in_build: true
 
-    - name: Build gcc-13.2.0.tar.xz
-      ansible.builtin.import_role:
-        name: cmi
-      vars:
-        cmi_archive: gcc-13.2.0.tar.xz
-        cmi_postinstall: |
-          cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
-          `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/include/limits.h
-        cmi_unarchive_extra: |
-          pwd
-          ls ..
-          if [ ! -d mpfr ]; then
-            tar -xf ../mpfr-4.2.1.tar.xz
-            mv -v mpfr-4.2.1 mpfr
-          fi
-          if [ ! -d gmp ]; then
-            tar -xf ../gmp-6.3.0.tar.xz
-            mv -v gmp-6.3.0 gmp
-          fi
-          if [ ! -d mpc ]; then
-            tar -xf ../mpc-1.3.1.tar.gz
-            mv -v mpc-1.3.1 mpc
-          fi
-        cmi_configure_command: |
-          ../configure              \
-          --target=$LFS_TGT         \
-          --prefix=$LFS/tools       \
-          --with-glibc-version=2.39 \
-          --with-sysroot=$LFS       \
-          --with-newlib             \
-          --without-headers         \
-          --enable-default-pie      \
-          --enable-default-ssp      \
-          --disable-nls             \
-          --disable-shared          \
-          --disable-multilib        \
-          --disable-threads         \
-          --disable-libatomic       \
-          --disable-libgomp         \
-          --disable-libquadmath     \
-          --disable-libssp          \
-          --disable-libvtv          \
-          --disable-libstdcxx       \
-          --enable-languages=c,c++
-        cmi_build_in_build: true
+        - name: Build gcc-13.2.0.tar.xz
+          ansible.builtin.import_role:
+            name: cmi
+          vars:
+            cmi_archive: gcc-13.2.0.tar.xz
+            cmi_postinstall: |
+              cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
+              `dirname $($LFS_TGT-gcc -print-libgcc-file-name)`/include/limits.h
+            cmi_unarchive_extra: |
+              pwd
+              ls ..
+              if [ ! -d mpfr ]; then
+                tar -xf ../mpfr-4.2.1.tar.xz
+                mv -v mpfr-4.2.1 mpfr
+              fi
+              if [ ! -d gmp ]; then
+                tar -xf ../gmp-6.3.0.tar.xz
+                mv -v gmp-6.3.0 gmp
+              fi
+              if [ ! -d mpc ]; then
+                tar -xf ../mpc-1.3.1.tar.gz
+                mv -v mpc-1.3.1 mpc
+              fi
+            cmi_configure_command: |
+              ../configure              \
+              --target=$LFS_TGT         \
+              --prefix=$LFS/tools       \
+              --with-glibc-version=2.39 \
+              --with-sysroot=$LFS       \
+              --with-newlib             \
+              --without-headers         \
+              --enable-default-pie      \
+              --enable-default-ssp      \
+              --disable-nls             \
+              --disable-shared          \
+              --disable-multilib        \
+              --disable-threads         \
+              --disable-libatomic       \
+              --disable-libgomp         \
+              --disable-libquadmath     \
+              --disable-libssp          \
+              --disable-libvtv          \
+              --disable-libstdcxx       \
+              --enable-languages=c,c++
+            cmi_build_in_build: true
+
+        - name: Install kernel headers
+          ansible.builtin.import_role:
+            name: cmi
+          vars:
+            cmi_archive: linux-6.7.4.tar.xz
+            cmi_dont_configure: true
+            cmi_dont_make: true
+            cmi_dont_makeinstall: true
+            cmi_postinstall: |
+              make mrproper
+              make headers
+              find usr/include -type f ! -name '*.h' -delete
+              cp -rv usr/include $LFS/usr
+
+        - name: Build glibc-2.39.tar.xz
+          ansible.builtin.import_role:
+            name: cmi
+          vars:
+            cmi_archive: glibc-2.39.tar.xz
+            cmi_unarchive_extra: |
+              patch -Np1 -i ../glibc-2.39-fhs-1.patch
+            cmi_configure_command: |
+              echo "rootsbindir=/usr/sbin" > configparms
+              ../configure                         \
+                --prefix=/usr                      \
+                --host=$LFS_TGT                    \
+                --build=$(../scripts/config.guess) \
+                --enable-kernel=4.19               \
+                --with-headers=$LFS/usr/include    \
+                --disable-nscd                     \
+                libc_cv_slibdir=/usr/lib
+            cmi_postinstall: |
+              make DESTDIR=$LFS install
+              case $(uname -m) in
+                i?86)   ln -sfv ld-linux.so.2 $LFS/lib/ld-lsb.so.3
+                ;;
+                x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 $LFS/lib64
+                        ln -sfv ../lib/ld-linux-x86-64.so.2 $LFS/lib64/ld-lsb-x86-64.so.3
+                ;;
+              esac
+            cmi_build_in_build: true
+            cmi_dont_makeinstall: true
 
 ...

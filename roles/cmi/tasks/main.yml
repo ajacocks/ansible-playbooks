@@ -13,23 +13,29 @@
   register: extract_dir
   changed_when: false
 
-- name: Define build dir
-  ansible.builtin.command: echo "{{ extract_dir.stdout }}"
-  register: build_path
-  changed_when: false
-  when: cmi_build_in_build is false
-
-- name: Define build dir for subdir
-  ansible.builtin.command: echo "{{ extract_dir.stdout }}/build"
-  register: build_path
-  changed_when: false
-  when: cmi_build_in_build is true
-
 - debug:
     msg: "Extract directory is {{ extract_dir.stdout }}."
 
-- debug:
-    msg: "Build path is {{ build_path.stdout }}."
+- name: Define build dir
+  block:
+    - name: Define dir
+      ansible.builtin.command: echo "{{ extract_dir.stdout }}"
+      register: build_path
+      changed_when: false
+
+    - debug:
+        msg: "Build path is {{ build_path.stdout }}."
+
+- name: Define build dir for subdir
+  when: cmi_build_in_build is true
+  block:
+    - name: Define dir
+      ansible.builtin.command: echo "{{ extract_dir.stdout }}/build"
+      register: build_path
+      changed_when: false
+
+    - debug:
+        msg: "Build path is {{ build_path.stdout }}."
 
 - name: Run extra unarchive commands
   ansible.builtin.shell: |
@@ -61,9 +67,11 @@
     creates: config.status
   environment: "{{ proxy_env }}"
   register: cmi_config_result
+  when: cmi_dont_configure is not defined
 
 - debug:
     var: cmi_config_result.stdout_lines
+  when: cmi_dont_configure is not defined
 
 - name: Execute make
   ansible.builtin.shell: |
@@ -73,9 +81,11 @@
     creates: .made
   environment: "{{ proxy_env }}"
   register: cmi_make_result
+  when: cmi_dont_make is not defined
 
 - debug:
     var: cmi_make_result.stdout_lines
+  when: cmi_dont_make is not defined
 
 - name: Execute make install
   ansible.builtin.shell: |
@@ -85,9 +95,11 @@
     creates: .installed
   environment: "{{ proxy_env }}"
   register: cmi_makeinstall_result
+  when: cmi_dont_makeinstall is not defined
 
 - debug:
     var: cmi_makeinstall_result.stdout_lines
+  when: cmi_dont_makeinstall is not defined
 
 - debug:
     var: cmi_postinstall
