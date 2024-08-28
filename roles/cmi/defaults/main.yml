@@ -2,5 +2,6 @@
 # defaults file for cmi
 
 cmi_build_in_build: false
+cmi_make_install_cmd: "make install"
 
 ...

@@ -8,6 +8,14 @@
     list_files: true
   register: unarchive
 
+- name: Define status_dir
+  ansible.builtin.command: echo "{{ lfs }}/sources/status"
+  register: status_dir
+  changed_when: false
+
+- debug:
+    msg: "Extract directory is {{ status_dir.stdout }}."
+
 - name: Define extract_dir
   ansible.builtin.command: echo "{{ lfs }}/sources/{{ unarchive.files[0] | regex_replace('/.*', '') }}"
   register: extract_dir
@@ -59,12 +67,13 @@
         state: directory
         mode: '0755'
 
-- name: Execute configure
+- name: Execute configure - cmi_configure_command
   ansible.builtin.shell: |
     {{ cmi_configure_command }}
+    if [ $? -eq 0 ]; then touch {{ status_dir.stdout }}/{{ cmi_step }}.configured; fi
   args:
     chdir: "{{ build_path.stdout }}"
-    creates: config.status
+    creates: "{{ status_dir.stdout }}/{{ cmi_step }}.configured"
   environment: "{{ proxy_env }}"
   register: cmi_config_result
   when: cmi_dont_configure is not defined
@@ -73,12 +82,13 @@
     var: cmi_config_result.stdout_lines
   when: cmi_dont_configure is not defined
 
-- name: Execute make
+- name: Execute make - make -j {{ gcc.jobs }}
   ansible.builtin.shell: |
-    make -j {{ gcc.jobs }} && touch .made
+    make -j {{ gcc.jobs }}
+    if [ $? -eq 0 ]; then touch {{ status_dir.stdout }}/{{ cmi_step }}.made; fi
   args:
     chdir: "{{ build_path.stdout }}"
-    creates: .made
+    creates: "{{ status_dir.stdout }}/{{ cmi_step }}.made"
   environment: "{{ proxy_env }}"
   register: cmi_make_result
   when: cmi_dont_make is not defined
@@ -87,12 +97,13 @@
     var: cmi_make_result.stdout_lines
   when: cmi_dont_make is not defined
 
-- name: Execute make install
+- name: Execute make install - {{ cmi_make_install_cmd }}
   ansible.builtin.shell: |
-    make install && touch .installed
+    {{ cmi_make_install_cmd }}
+    if [ $? -eq 0 ]; then touch {{ status_dir.stdout }}/{{ cmi_step }}.installed; fi
   args:
     chdir: "{{ build_path.stdout }}"
-    creates: .installed
+    creates: "{{ status_dir.stdout }}/{{ cmi_step }}.installed"
   environment: "{{ proxy_env }}"
   register: cmi_makeinstall_result
   when: cmi_dont_makeinstall is not defined
@@ -105,18 +116,29 @@
     var: cmi_postinstall
   when: cmi_postinstall is defined
 
-- name: Run postinstall commands
+- name: Run postinstall commands - {{ cmi_postinstall }}
   ansible.builtin.shell: |
     {{ cmi_postinstall }}
-    if [ $? -eq 0 ]; then touch .postinstalled; fi
+    if [ $? -eq 0 ]; then touch {{ status_dir.stdout }}/{{ cmi_step }}.postinstalled; fi
   args:
     chdir: "{{ extract_dir.stdout }}"
-    creates: .postinstalled
+    creates: "{{ status_dir.stdout }}/{{ cmi_step }}.postinstalled"
   when: cmi_postinstall is defined
   environment: "{{ proxy_env }}"
   register: cmi_postinstall_result
 
 - debug:
     var: cmi_postinstall_result.stdout_lines
+
+- name: Clean up build - remove directory {{ extract_dir.stdout }}
+  ansible.builtin.file:
+    path: "{{ extract_dir.stdout }}"
+    state: absent
+  when: cmi_dont_clean is not defined
+  environment: "{{ proxy_env }}"
+  register: cmi_cleanup_result
+
+- debug:
+    var: cmi_cleanup_result.stdout_lines
 
 ...
