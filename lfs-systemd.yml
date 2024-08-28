@@ -183,6 +183,7 @@
           loop:
             - root
             - boot
+
     - name: Create group lfs
       ansible.builtin.group:
         name: lfs
@@ -243,9 +244,20 @@
       become: true
       become_user: lfs
 
+    - name: Check status of downloads
+      ansible.builtin.stat:
+        path: '{{ proxy_env.LFS }}/sources/status/download.done'
+      register: download_done
+
+    - name: Skip downloading files because we're done
+      ansible.builtin.debug:
+        msg: Downloads are all done
+      when: download_done.stat.exists is defined
+
     - name: Download and verify all needed files
       become: true
       become_user: lfs
+      when: download_done.stat.exists is not defined
       block:
         - name: Download the list of files to be retrieved and the md5sums to verify them
           ansible.builtin.get_url:
@@ -289,6 +301,12 @@
           register: md5sum
           failed_when: md5sum.rc != 0
           changed_when: false
+
+        - name: Create download status file
+          ansible.builtin.copy:
+            dest: '{{ proxy_env.LFS }}/sources/status/download.done'
+            content: 'true'
+            mode: '0644'
 
     - name: Prep destination volume
       become: true
@@ -442,36 +460,24 @@
               sed '/RTLDLIST=/s@/usr@@g' -i {{ proxy_env.LFS }}/usr/bin/ldd
             cmi_build_in_build: true
 
-        - fail:
-
-        - name: Build libstdc++ - NOT DONE
+        - name: Build libstdc++
           ansible.builtin.import_role:
             name: cmi
           vars:
             cmi_step: 5.6
-            cmi_archive: glibc-2.39.tar.xz
-            cmi_unarchive_extra: |
-              patch -Np1 -i ../glibc-2.39-fhs-1.patch
+            cmi_archive: gcc-13.2.0.tar.xz
             cmi_configure_command: |
-              echo "rootsbindir=/usr/sbin" > configparms
-              ../configure                         \
-                --prefix=/usr                      \
-                --host={{ proxy_env.LFS_TGT }}                    \
-                --build=$(../scripts/config.guess) \
-                --enable-kernel=4.19               \
-                --with-headers={{ proxy_env.LFS }}/usr/include    \
-                --disable-nscd                     \
-                libc_cv_slibdir=/usr/lib
+              ../libstdc++-v3/configure       \
+              --host={{ proxy_env.LFS_TGT }}  \
+              --build=$(../config.guess)      \
+              --prefix=/usr                   \
+              --disable-multilib              \
+              --disable-nls                   \
+              --disable-libstdcxx-pch         \
+              --with-gxx-include-dir=/tools/{{ proxy_env.LFS_TGT }}/include/c++/13.2.0
             cmi_make_install_cmd: make DESTDIR={{ proxy_env.LFS }} install
             cmi_postinstall: |
-              case $(uname -m) in
-                i?86)   ln -sfv ld-linux.so.2 {{ proxy_env.LFS }}/lib/ld-lsb.so.3
-                ;;
-                x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64
-                        ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64/ld-lsb-x86-64.so.3
-                ;;
-              esac
-              sed '/RTLDLIST=/s@/usr@@g' -i {{ proxy_env.LFS }}/usr/bin/ldd
+              rm -v {{ proxy_env.LFS }}/usr/lib/lib{stdc++{,exp,fs},supc++}.la
             cmi_build_in_build: true
 
 ...
