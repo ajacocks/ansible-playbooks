@@ -6,6 +6,7 @@
 
   vars:
     lfs: /mnt/lfs
+    source_proxy: /tmp/lfs-sources
     gcc:
 #     triplet: x86_64-pc-linux-gnu
       lfstriplet: i586-lfs-linux-gnu
@@ -249,15 +250,19 @@
         path: '{{ proxy_env.LFS }}/sources/status/download.done'
       register: download_done
 
+    - name: Debug status of downloads
+      ansible.builtin.debug:
+        var: download_done
+
     - name: Skip downloading files because we're done
       ansible.builtin.debug:
         msg: Downloads are all done
-      when: download_done.stat.exists is defined
+      when: download_done.stat.exists is true
 
     - name: Download and verify all needed files
       become: true
       become_user: lfs
-      when: download_done.stat.exists is not defined
+      when: download_done.stat.exists is false
       block:
         - name: Download the list of files to be retrieved and the md5sums to verify them
           ansible.builtin.get_url:
@@ -286,6 +291,17 @@
           ansible.builtin.set_fact:
             wgetlistpath: "{{ proxy_env.LFS }}/sources/wget-list"
             md5sumspath: "{{ proxy_env.LFS }}/sources/md5sums"
+
+        - name: Check source_proxy
+          ansible.builtin.debug:
+            var: source_proxy
+
+        - name: Copy all source files from proxy dir when source_proxy is defined
+          ansible.builtin.copy:
+            src: "{{ source_proxy }}/"
+            dest: "{{ proxy_env.LFS }}/sources"
+            mode: '0644'
+          when: source_proxy is defined
 
         - name: Download each file listed in wget-list and verify it with the same line in md5sums
           ansible.builtin.get_url:
@@ -331,7 +347,7 @@
             path: '{{ proxy_env.LFS }}/lib64'
             state: directory
             mode: '0755'
-          when: ansible_architecture == "x86_64"
+          when: gcc.lfstriplet is regex("^x86_64")
 
         - name: Create lfs directory structure symlinks
           ansible.builtin.file:
@@ -457,7 +473,7 @@
                 libc_cv_slibdir=/usr/lib
             cmi_make_install_cmd: make DESTDIR={{ proxy_env.LFS }} install
             cmi_postinstall: |
-              case $(uname -m) in
+              case $( echo {{ gcc.lfstriplet }} | sed 's/-.*//' ) in
                 i?86)   ln -sfv ld-linux.so.2 {{ proxy_env.LFS }}/lib/ld-lsb.so.3
                 ;;
                 x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64/
@@ -777,7 +793,7 @@
                 tar -xf ../mpc-1.3.1.tar.gz
                 mv -v mpc-1.3.1 mpc
               fi
-              case $(uname -m) in
+              case $( echo {{ gcc.lfstriplet }} | sed 's/-.*//' ) in
                 x86_64)
                   sed -e '/m64=/s/lib64/lib/' \
                       -i.orig gcc/config/i386/t-linux64
@@ -833,6 +849,6 @@
             path: '{{ proxy_env.LFS }}/lib64'
             owner: root
             group: root
-          when: ansible_architecture == "x86_64"
+          when: gcc.lfstriplet is regex("^x86_64")
 
 ...
