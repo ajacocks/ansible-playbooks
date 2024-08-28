@@ -1,0 +1,135 @@
+---
+
+- name: Build packages for lfs - Chapter 5
+  become: true
+  become_user: lfs
+  block:
+    - name: Build binutils-2.42.tar.xz - Pass 1
+      ansible.builtin.import_role:
+        name: cmi
+      vars:
+        cmi_step: 5.2
+        cmi_archive: binutils-2.42.tar.xz
+        cmi_configure_command: |
+          ../configure --prefix={{ proxy_env.LFS }}/tools \
+          --with-sysroot={{ proxy_env.LFS }} \
+          --target={{ proxy_env.LFS_TGT }} \
+          --disable-nls \
+          --enable-gprofng=no \
+          --disable-werror \
+          --enable-default-hash-style=gnu
+        cmi_build_in_build: true
+
+    - name: Build gcc-13.2.0.tar.xz - Pass 1
+      ansible.builtin.import_role:
+        name: cmi
+      vars:
+        cmi_step: 5.3
+        cmi_archive: gcc-13.2.0.tar.xz
+        cmi_postinstall: |
+          cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
+          `dirname $({{ proxy_env.LFS_TGT }}-gcc -print-libgcc-file-name)`/include/limits.h
+        cmi_unarchive_extra: |
+          pwd
+          ls ..
+          if [ ! -d mpfr ]; then
+            tar -xf ../mpfr-4.2.1.tar.xz
+            mv -v mpfr-4.2.1 mpfr
+          fi
+          if [ ! -d gmp ]; then
+            tar -xf ../gmp-6.3.0.tar.xz
+            mv -v gmp-6.3.0 gmp
+          fi
+          if [ ! -d mpc ]; then
+            tar -xf ../mpc-1.3.1.tar.gz
+            mv -v mpc-1.3.1 mpc
+          fi
+        cmi_configure_command: |
+          ../configure              \
+          --target={{ proxy_env.LFS_TGT }}         \
+          --prefix={{ proxy_env.LFS }}/tools       \
+          --with-glibc-version=2.39 \
+          --with-sysroot={{ proxy_env.LFS }}       \
+          --with-newlib             \
+          --without-headers         \
+          --enable-default-pie      \
+          --enable-default-ssp      \
+          --disable-nls             \
+          --disable-shared          \
+          --disable-multilib        \
+          --disable-threads         \
+          --disable-libatomic       \
+          --disable-libgomp         \
+          --disable-libquadmath     \
+          --disable-libssp          \
+          --disable-libvtv          \
+          --disable-libstdcxx       \
+          --enable-languages=c,c++
+        cmi_build_in_build: true
+
+    - name: Install kernel headers
+      ansible.builtin.import_role:
+        name: cmi
+      vars:
+        cmi_step: 5.4
+        cmi_archive: linux-6.7.4.tar.xz
+        cmi_dont_configure: true
+        cmi_dont_make: true
+        cmi_dont_makeinstall: true
+        cmi_postinstall: |
+          make mrproper
+          make headers
+          find usr/include -type f ! -name '*.h' -delete
+          cp -rv usr/include {{ proxy_env.LFS }}/usr
+
+    - name: Build glibc-2.39.tar.xz
+      ansible.builtin.import_role:
+        name: cmi
+      vars:
+        cmi_step: 5.5
+        cmi_archive: glibc-2.39.tar.xz
+        cmi_unarchive_extra: |
+          patch -Np1 -i ../glibc-2.39-fhs-1.patch
+        cmi_configure_command: |
+          echo "rootsbindir=/usr/sbin" > configparms
+          ../configure                         \
+            --prefix=/usr                      \
+            --host={{ proxy_env.LFS_TGT }}                    \
+            --build=$(../scripts/config.guess) \
+            --enable-kernel=4.19               \
+            --with-headers={{ proxy_env.LFS }}/usr/include    \
+            --disable-nscd                     \
+            libc_cv_slibdir=/usr/lib
+        cmi_make_install_cmd: make DESTDIR={{ proxy_env.LFS }} install
+        cmi_postinstall: |
+          case $( echo {{ gcc.lfstriplet }} | sed 's/-.*//' ) in
+            i?86)   ln -sfv ld-linux.so.2 {{ proxy_env.LFS }}/lib/ld-lsb.so.3
+            ;;
+            x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64/
+                    ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64/ld-lsb-x86-64.so.3
+            ;;
+          esac
+          sed '/RTLDLIST=/s@/usr@@g' -i {{ proxy_env.LFS }}/usr/bin/ldd
+        cmi_build_in_build: true
+
+    - name: Build libstdc++
+      ansible.builtin.import_role:
+        name: cmi
+      vars:
+        cmi_step: 5.6
+        cmi_archive: gcc-13.2.0.tar.xz
+        cmi_configure_command: |
+          ../libstdc++-v3/configure       \
+          --host={{ proxy_env.LFS_TGT }}  \
+          --build=$(../config.guess)      \
+          --prefix=/usr                   \
+          --disable-multilib              \
+          --disable-nls                   \
+          --disable-libstdcxx-pch         \
+          --with-gxx-include-dir=/tools/{{ proxy_env.LFS_TGT }}/include/c++/13.2.0
+        cmi_make_install_cmd: make DESTDIR={{ proxy_env.LFS }} install
+        cmi_postinstall: |
+          rm -v {{ proxy_env.LFS }}/usr/lib/lib{stdc++{,exp,fs},supc++}.la
+        cmi_build_in_build: true
+
+...
