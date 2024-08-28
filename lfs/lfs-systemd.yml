@@ -326,6 +326,13 @@
             - usr/sbin
             - var
 
+        - name: Create lfs/lib64 when arch is x86_64
+          ansible.builtin.file:
+            path: '{{ proxy_env.LFS }}/lib64'
+            state: directory
+            mode: '0755'
+          when: ansible_architecture == "x86_64"
+
         - name: Create lfs directory structure symlinks
           ansible.builtin.file:
             src: "{{ proxy_env.LFS }}/usr/{{ item }}"
@@ -453,7 +460,7 @@
               case $(uname -m) in
                 i?86)   ln -sfv ld-linux.so.2 {{ proxy_env.LFS }}/lib/ld-lsb.so.3
                 ;;
-                x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64
+                x86_64) ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64/
                         ln -sfv ../lib/ld-linux-x86-64.so.2 {{ proxy_env.LFS }}/lib64/ld-lsb-x86-64.so.3
                 ;;
               esac
@@ -801,5 +808,31 @@
               ln -sv gcc $LFS/usr/bin/cc
             cmi_build_in_build: true
             cmi_debug: true
+
+    - name: Chroot and Build Additional Tools - Chapter 7
+      become: true
+      become_user: root
+      block:
+
+        - name: Change ownership to root:root for {{ proxy_env.LFS }}
+          ansible.builtin.file:
+            path: "{{ proxy_env.LFS }}/{{ item }}"
+            owner: root
+            group: root
+          loop:
+            - usr
+            - lib
+            - var
+            - etc
+            - bin
+            - sbin
+            - tools
+
+        - name: Change ownership on to root:root on x86_64 for {{ proxy_env.LFS~'/lib64' }}
+          ansible.builtin.file:
+            path: '{{ proxy_env.LFS }}/lib64'
+            owner: root
+            group: root
+          when: ansible_architecture == "x86_64"
 
 ...
