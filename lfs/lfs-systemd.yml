@@ -179,7 +179,7 @@
             path: "{{ devices['disk'][item]['mountpoint'] }}"
             src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
             fstype: "{{ devices['disk'][item]['format'] }}"
-            state: mounted
+            state: ephemeral
           become: true
           loop:
             - root
@@ -200,10 +200,15 @@
         state: present
       register: user_result
 
-    - name: Get stats of a  file
+    - name: Get status of {{ proxy_env.LFS }}
       ansible.builtin.stat:
         path: '{{ proxy_env.LFS }}'
       register: st
+
+    - name: Get status of {{ proxy_env.LFS~'/.perms-done' }}
+      ansible.builtin.stat:
+        path: "{{ proxy_env.LFS~'/.perms-done' }}"
+      register: stperms
 
     - name: Set permissions on lfs to owner lfs group lfs
       ansible.builtin.file:
@@ -213,7 +218,14 @@
         mode: '0755'
         recurse: true
       become: true
-      when: st.stat.uid != user_result.uid
+      when: st.stat.uid != user_result.uid and stperms.stat.isreg is false
+
+    - name: Create file when permissions are set
+      ansible.builtin.file:
+        path: "{{ proxy_env.LFS~'/.perms-done' }}"
+        mode: '0644'
+        state: touch
+      become: true
 
     - name: Create lfs ansible temp directory
       ansible.builtin.file:
@@ -380,29 +392,7 @@
         file: chapter6.yml
 
     - name: Chroot and Build Additional Tools - Chapter 7
-      become: true
-      become_user: root
-      block:
-
-        - name: Change ownership to root:root for {{ proxy_env.LFS }}
-          ansible.builtin.file:
-            path: "{{ proxy_env.LFS }}/{{ item }}"
-            owner: root
-            group: root
-          loop:
-            - usr
-            - lib
-            - var
-            - etc
-            - bin
-            - sbin
-            - tools
-
-        - name: Change ownership on to root:root on x86_64 for {{ proxy_env.LFS~'/lib64' }}
-          ansible.builtin.file:
-            path: '{{ proxy_env.LFS }}/lib64'
-            owner: root
-            group: root
-          when: gcc.lfstriplet is regex("^x86_64")
+      ansible.builtin.include_tasks:
+        file: chapter7.yml
 
 ...

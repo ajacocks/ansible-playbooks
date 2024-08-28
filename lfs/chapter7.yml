@@ -1,0 +1,92 @@
+---
+
+- name: Chroot and Build Additional Tools - Chapter 7
+  become: true
+  become_user: root
+  block:
+
+    - name: Change ownership to root:root for {{ proxy_env.LFS }}
+      ansible.builtin.file:
+        path: "{{ proxy_env.LFS }}/{{ item }}"
+        owner: root
+        group: root
+      loop:
+        - usr
+        - lib
+        - var
+        - etc
+        - bin
+        - sbin
+        - tools
+
+    - name: Change ownership on to root:root on x86_64 for {{ proxy_env.LFS~'/lib64' }}
+      ansible.builtin.file:
+        path: '{{ proxy_env.LFS }}/lib64'
+        owner: root
+        group: root
+      when: gcc.lfstriplet is regex("^x86_64")
+
+    - name: Create VFS directories $LFS/{dev,proc,sys,run}
+      ansible.builtin.file:
+        path: "{{ proxy_env.LFS }}/{{ item }}"
+        state: directory
+        owner: root
+        group: root
+      loop:
+        - dev
+        - proc
+        - sys
+        - run
+
+#   - name: Mount and populate /dev
+#     ansible.posix.mount:
+#       path: "{{ item.path }}"
+#       src: "{{ item.src }}"
+#       fstype: "{{ item.fstype }}"
+#       opts: "{{ item.opts }}"
+#       state: ephemeral
+#     loop:
+#       - { path: '{{ proxy_env.LFS }}/dev', src: '/dev', fstype: 'none', opts: 'bind' }
+#       - { path: '{{ proxy_env.LFS }}/dev/pts', src: 'devpts', fstype: 'devpts', opts: 'gid=5,mode=0620' }
+#       - { path: '/proc', src: 'proc', fstype: 'proc', opts: 'defaults' }
+#       - { path: '/sys', src: 'sysfs', fstype: 'sysfs', opts: 'defaults' }
+#       - { path: '/run', src: 'tmpfs', fstype: 'tmpfs', opts: 'defaults' }
+
+    - name: Mount and populate /dev
+      block:
+
+        - name: Mount /dev
+          ansible.builtin.shell: |
+            mount -v --bind /dev {{ proxy_env.LFS }}/dev
+          when: proxy_env.LFS~'/dev' is not mount
+
+        - name: Mount /dev/pts
+          ansible.builtin.shell: |
+            mount -vt devpts devpts -o gid=5,mode=0620 {{ proxy_env.LFS }}/dev/pts
+          when: proxy_env.LFS~'/dev/pts' is not mount
+
+        - name: Mount /proc
+          ansible.builtin.shell: |
+            mount -vt proc proc {{ proxy_env.LFS }}/proc
+          when: proxy_env.LFS~'/proc' is not mount
+
+        - name: Mount /sys
+          ansible.builtin.shell: |
+            mount -vt sysfs sysfs {{ proxy_env.LFS }}/sys
+          when: proxy_env.LFS~'/sys' is not mount
+
+        - name: Mount /run
+          ansible.builtin.shell: |
+            mount -vt tmpfs tmpfs {{ proxy_env.LFS }}/run
+          when: proxy_env.LFS~'/run' is not mount
+
+        - name: Mount /dev/shm
+          ansible.builtin.shell: |
+            if [ -h {{ proxy_env.LFS }}/dev/shm ]; then
+              install -v -d -m 1777 {{ proxy_env.LFS }}$(realpath /dev/shm)
+            else
+              mount -vt tmpfs -o nosuid,nodev tmpfs {{ proxy_env.LFS }}/dev/shm
+            fi
+          when: proxy_env.LFS~'/run' is not mount
+
+...
