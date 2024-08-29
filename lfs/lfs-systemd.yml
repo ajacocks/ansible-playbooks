@@ -192,6 +192,7 @@
       ansible.builtin.group:
         name: lfs
         state: present
+      become: true
 
     - name: Create user lfs with group lfs
       ansible.builtin.user:
@@ -201,6 +202,7 @@
         shell: /bin/bash
         create_home: true
         state: present
+      become: true
       register: user_result
 
     - name: Debug user_result
