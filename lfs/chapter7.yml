@@ -10,6 +10,7 @@
         path: "{{ proxy_env.LFS }}/{{ item }}"
         owner: root
         group: root
+        recurse: true
       loop:
         - usr
         - lib
@@ -18,6 +19,7 @@
         - bin
         - sbin
         - tools
+      ignore_errors: true
 
     - name: Change ownership on to root:root on x86_64 for {{ proxy_env.LFS~'/lib64' }}
       ansible.builtin.file:
@@ -55,10 +57,29 @@
     - name: Mount and populate /dev
       block:
 
+        - name: Get status of {{ proxy_env.LFS~'/dev/null' }}
+          ansible.builtin.stat:
+            path: "{{ proxy_env.LFS~'/dev/null' }}"
+          register: devfs
+
+        - name: Debug devfs variable
+          ansible.builtin.debug:
+            var: devfs
+
         - name: Mount /dev
           ansible.builtin.shell: |
             mount -v --bind /dev {{ proxy_env.LFS }}/dev
-          when: proxy_env.LFS~'/dev' is not mount
+          when: devfs.stat.exists is false
+#         when: proxy_env.LFS~'/dev' is not mount
+
+        - name: Get status of {{ proxy_env.LFS~'/dev/null' }}
+          ansible.builtin.stat:
+            path: "{{ proxy_env.LFS~'/dev/pts' }}"
+          register: devpts
+
+        - name: Debug devpts variable
+          ansible.builtin.debug:
+            var: devpts
 
         - name: Mount /dev/pts
           ansible.builtin.shell: |

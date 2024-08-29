@@ -6,11 +6,14 @@
 
   vars:
     lfs: /mnt/lfs
-    source_proxy: /tmp/lfs-sources
+    source_proxy: /home/lfs/sources
     gcc:
-#     triplet: x86_64-pc-linux-gnu
-      lfstriplet: i586-lfs-linux-gnu
-      triplet: i586-pc-linux-gnu
+#     hosttriplet: x86_64-pc-linux-gnu
+#     lfstriplet: i586-lfs-linux-gnu
+#     triplet: i586-pc-linux-gnu
+      hosttriplet: i686-linux-gnu
+      lfstriplet: i686-lfs-linux-gnu
+      triplet: i686-pc-linux-gnu
       jobs: "{{ ( ansible_processor|length|int/3 ) | int }}"
     devices:
       disk:
@@ -200,15 +203,27 @@
         state: present
       register: user_result
 
+    - name: Debug user_result
+      ansible.builtin.debug:
+        var: user_result
+
     - name: Get status of {{ proxy_env.LFS }}
       ansible.builtin.stat:
         path: '{{ proxy_env.LFS }}'
       register: st
 
+    - name: Debug st
+      ansible.builtin.debug:
+        var: st
+
     - name: Get status of {{ proxy_env.LFS~'/.perms-done' }}
       ansible.builtin.stat:
         path: "{{ proxy_env.LFS~'/.perms-done' }}"
       register: stperms
+
+    - name: Debug stperms
+      ansible.builtin.debug:
+        var: stperms
 
     - name: Set permissions on lfs to owner lfs group lfs
       ansible.builtin.file:
@@ -218,7 +233,7 @@
         mode: '0755'
         recurse: true
       become: true
-      when: st.stat.uid != user_result.uid and stperms.stat.isreg is false
+      when: st.stat.uid != user_result.uid and ((stperms.stat.isreg is false) or (stperms.stat.exists is false))
 
     - name: Create file when permissions are set
       ansible.builtin.file:
@@ -308,12 +323,17 @@
           ansible.builtin.debug:
             var: source_proxy
 
+        - name: Get status of {{ source_proxy }}
+          ansible.builtin.stat:
+            path: "{{ source_proxy }}"
+          register: sp
+
         - name: Copy all source files from proxy dir when source_proxy is defined
           ansible.builtin.copy:
             src: "{{ source_proxy }}/"
             dest: "{{ proxy_env.LFS }}/sources"
             mode: '0644'
-          when: source_proxy is defined
+          when: source_proxy is defined and sp.stat.exists is true
 
         - name: Download each file listed in wget-list and verify it with the same line in md5sums
           ansible.builtin.get_url:
@@ -359,6 +379,7 @@
             path: '{{ proxy_env.LFS }}/lib64'
             state: directory
             mode: '0755'
+#         when: gcc.hosttriplet is regex("^x86_64")
           when: gcc.lfstriplet is regex("^x86_64")
 
         - name: Create lfs directory structure symlinks
@@ -394,5 +415,21 @@
     - name: Chroot and Build Additional Tools - Chapter 7
       ansible.builtin.include_tasks:
         file: chapter7.yml
+
+- name: Enter chroot
+  hosts: lfschroot
+  connection: community.general.chroot
+
+  #vars:
+  #  ansible_executable: /bin/bash
+
+  tasks:
+
+    - name: Touch test file /iaminachroot
+      ansible.builtin.file:
+        path: /iaminachroot
+        state: touch
+        mode: '0644'
+
 
 ...
