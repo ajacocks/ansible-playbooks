@@ -4,5 +4,12 @@
 cmi_build_in_build: false
 cmi_make_install_cmd: "make install"
 cmi_make_cmd: "make -j {{ gcc.jobs }}"
+cmi_dont_clean: false
+cmi_dont_configure: false
+cmi_dont_make: false
+cmi_dont_makeinstall: false
+cmi_postinstall: false
+cmi_unarchive_extra: false
+cmi_debug: false
 
 ...

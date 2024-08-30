@@ -1,12 +1,14 @@
 ---
 
 - name: Build an LFS 12.1 systemd image
-  hosts: localhost
+  hosts: lfs
   become: false
 
   vars:
     lfs: /mnt/lfs
     source_proxy: /home/lfs/sources
+    losetup_path: "{{ (ansible_distribution == 'Debian') | ternary('/usr/sbin/losetup', '/usr/bin/losetup') }}"
+
     gcc:
 #     hosttriplet: x86_64-pc-linux-gnu
 #     lfstriplet: i586-lfs-linux-gnu
@@ -65,6 +67,7 @@
         - name: Print debugging message
           ansible.builtin.debug:
             var: version_check.stdout_lines
+          when: debug is defined
 
     - name: Do loopback file setup
       when: devices.disk.type == "loop"
@@ -77,7 +80,7 @@
             sparse: true
 
         - name: Check to see if the specified file exists as a loop device
-          ansible.builtin.command: losetup -j {{ devices.disk.file }}
+          ansible.builtin.command: "{{ losetup_path }} -j {{ devices.disk.file }}"
           register: losetup_result
           changed_when: false
 
@@ -87,7 +90,7 @@
           when: debug is defined
 
         - name: Create a loop device if not
-          ansible.builtin.command: losetup -Pf {{ devices.disk.file }} --show
+          ansible.builtin.command: "{{ losetup_path }} -Pf {{ devices.disk.file }} --show"
           when: losetup_result.stdout is not regex("^/dev/loop")
           register: losetup_create_result
           changed_when: losetup_create_result.rc == 0
@@ -166,6 +169,7 @@
         - name: Display disk info after partitioning
           ansible.builtin.debug:
             var: disk_info
+          when: debug is defined
 
         - name: Format all partitions created on disk
           community.general.filesystem:
@@ -182,7 +186,19 @@
             path: "{{ devices['disk'][item]['mountpoint'] }}"
             src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
             fstype: "{{ devices['disk'][item]['format'] }}"
-            state: ephemeral
+            state: mounted
+          become: true
+          when: devices['disk'][item]['mountpoint'] is not mount
+          loop:
+            - root
+            - boot
+
+        - name: Remove root and boot partitions from fstab
+          ansible.posix.mount:
+            path: "{{ devices['disk'][item]['mountpoint'] }}"
+            src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
+            fstype: "{{ devices['disk'][item]['format'] }}"
+            state: absent_from_fstab
           become: true
           loop:
             - root
@@ -208,6 +224,7 @@
     - name: Debug user_result
       ansible.builtin.debug:
         var: user_result
+      when: debug is defined
 
     - name: Get status of {{ proxy_env.LFS }}
       ansible.builtin.stat:
@@ -217,6 +234,7 @@
     - name: Debug st
       ansible.builtin.debug:
         var: st
+      when: debug is defined
 
     - name: Get status of {{ proxy_env.LFS~'/.perms-done' }}
       ansible.builtin.stat:
@@ -226,6 +244,7 @@
     - name: Debug stperms
       ansible.builtin.debug:
         var: stperms
+      when: debug is defined
 
     - name: Set permissions on lfs to owner lfs group lfs
       ansible.builtin.file:
@@ -282,6 +301,7 @@
     - name: Debug status of downloads
       ansible.builtin.debug:
         var: download_done
+      when: debug is defined
 
     - name: Skip downloading files because we're done
       ansible.builtin.debug:
@@ -293,6 +313,27 @@
       become_user: lfs
       when: download_done.stat.exists is false
       block:
+
+        - name: Check source_proxy
+          ansible.builtin.debug:
+            var: source_proxy
+          when: debug is defined
+
+        - name: Get status of {{ source_proxy }}
+          ansible.builtin.stat:
+            path: "{{ source_proxy }}"
+          register: sp
+
+        - name: Copy wget-list and md5sums from proxy dir when source_proxy is defined
+          ansible.builtin.copy:
+            src: "{{ source_proxy }}/../lists/{{ item }}"
+            dest: "{{ proxy_env.LFS }}/sources"
+            mode: '0644'
+          loop:
+            - wget-list
+            - md5sums
+          when: source_proxy is defined and sp.stat.exists is true
+
         - name: Download the list of files to be retrieved and the md5sums to verify them
           ansible.builtin.get_url:
             url: "{{ item.url }}"
@@ -305,6 +346,12 @@
             - name: md5sums
               url:
                 https://www.linuxfromscratch.org/lfs/downloads/stable/md5sums
+          when: source_proxy is not defined or sp.stat.exists is false
+
+        - name: Debug proxy_env
+          ansible.builtin.debug:
+            var: proxy_env
+          when: debug is defined
 
         - name: Apply patch to multiple files under basedir
           ansible.posix.patch:
@@ -315,20 +362,17 @@
           loop:
             - wget-list
             - md5sums
+          register: patch_result
+
+        - name: Debug patch user_result
+          ansible.builtin.debug:
+            var: patch_result
+          when: debug is defined
 
         - name: Register file names
           ansible.builtin.set_fact:
             wgetlistpath: "{{ proxy_env.LFS }}/sources/wget-list"
             md5sumspath: "{{ proxy_env.LFS }}/sources/md5sums"
-
-        - name: Check source_proxy
-          ansible.builtin.debug:
-            var: source_proxy
-
-        - name: Get status of {{ source_proxy }}
-          ansible.builtin.stat:
-            path: "{{ source_proxy }}"
-          register: sp
 
         - name: Copy all source files from proxy dir when source_proxy is defined
           ansible.builtin.copy:
@@ -343,6 +387,7 @@
             dest: "{{ proxy_env.LFS }}/sources/{{ item | regex_replace('^.*/', '') }}"
             mode: '0644'
           loop: "{{ lookup('file', wgetlistpath).splitlines() }}"
+          when: source_proxy is not defined or sp.stat.exists is false
 
         - name: Verify all files are correct
           ansible.builtin.command:
@@ -386,7 +431,7 @@
 
         - name: Create lfs directory structure symlinks
           ansible.builtin.file:
-            src: "{{ proxy_env.LFS }}/usr/{{ item }}"
+            src: "usr/{{ item }}"
             path: "{{ proxy_env.LFS }}/{{ item }}"
             state: link
           loop:
@@ -402,7 +447,7 @@
 
         - name: Symlink lfs .bashrc to .bash_profile
           ansible.builtin.file:
-            src: '{{ proxy_env.LFS }}/.bashrc'
+            src: '.bashrc'
             dest: '{{ proxy_env.LFS }}/.bash_profile'
             state: link
 

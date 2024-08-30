@@ -1,7 +1,11 @@
 ---
 # tasks file for cmi
 
-- name: Define status_dir
+- name: Debug status
+  ansible.builtin.debug:
+    var: cmi_debug
+
+- name: Define status_dir is true
   ansible.builtin.command: echo "{{ lfs }}/sources/status"
   register: status_dir
   changed_when: false
@@ -15,6 +19,11 @@
   ansible.builtin.stat:
     path: "{{ status_dir.stdout }}/{{ cmi_step }}.done"
   register: done_file
+
+- name: Debug done_file
+  ansible.builtin.debug:
+    var: done_file
+  when: cmi_debug
 
 - name: Build software
   when: done_file.stat.isreg is not defined
@@ -33,17 +42,19 @@
       changed_when: false
 
     - name: Define build dir
-      ansible.builtin.command: echo "{{ ( cmi_build_in_build is false ) | ternary( extract_dir.stdout, extract_dir.stdout~'/build' ) }}"
+      ansible.builtin.command: echo "{{ ( not cmi_build_in_build ) | ternary( extract_dir.stdout, extract_dir.stdout~'/build' ) }}"
       register: build_path
       changed_when: false
 
     - name: Debug build dir
       ansible.builtin.debug:
         var: build_path
+      when: cmi_debug
 
-    - name: Extra directory
+    - name: Extract directory
       ansible.builtin.debug:
         msg: "Extract directory is {{ extract_dir.stdout }}."
+      when: cmi_debug
 
     - name: Run extra unarchive commands
       ansible.builtin.shell: |
@@ -52,18 +63,17 @@
       args:
         chdir: "{{ extract_dir.stdout }}"
         creates: "{{ status_dir.stdout }}/{{ cmi_step }}.configured"
-
-      when: cmi_unarchive_extra is defined
+      when: cmi_unarchive_extra
       environment: "{{ proxy_env }}"
       register: unarchive_extra
 
     - name: Debug cmi_unarchive_extra
       ansible.builtin.debug:
         var: unarchive_extra
-      when: cmi_unarchive_extra is defined and cmi_debug is defined
+      when: cmi_unarchive_extra and cmi_debug
 
     - name: Handle build in subdirectory
-      when: cmi_build_in_build is true
+      when: cmi_build_in_build
       block:
         - name: Create dir {{ build_path.stdout }}
           ansible.builtin.file:
@@ -71,10 +81,17 @@
             state: directory
             mode: '0755'
 
-    - ansible.builtin.debug:
+    - name: Debug build path
+      ansible.builtin.debug:
         var: build_path
+      when: cmi_debug
 
-    - name: Execute configure - cmi_configure_command
+    - name: Debug cmi_dont_configure
+      ansible.builtin.debug:
+        var: cmi_dont_configure
+      when: cmi_debug
+
+    - name: Execute configure - {{ cmi_configure_command }}
       ansible.builtin.shell: |
         {{ cmi_configure_command }}
         if [ $? -eq 0 ]; then touch {{ status_dir.stdout }}/{{ cmi_step }}.configured; fi
@@ -83,12 +100,17 @@
         creates: "{{ status_dir.stdout }}/{{ cmi_step }}.configured"
       environment: "{{ proxy_env }}"
       register: cmi_config_result
-      when: cmi_dont_configure is not defined
+      when: not cmi_dont_configure
 
     - name: Debug cmi_config_result
       ansible.builtin.debug:
         var: cmi_config_result
-      when: cmi_dont_configure is not defined and cmi_debug is defined
+      when: not cmi_dont_configure and cmi_debug
+
+    - name: Debug cmi_dont_make
+      ansible.builtin.debug:
+        var: cmi_dont_make
+      when: cmi_debug
 
     - name: Execute make - {{ cmi_make_cmd }}
       ansible.builtin.shell: |
@@ -99,12 +121,17 @@
         creates: "{{ status_dir.stdout }}/{{ cmi_step }}.made"
       environment: "{{ proxy_env }}"
       register: cmi_make_result
-      when: cmi_dont_make is not defined
+      when: not cmi_dont_make
 
     - name: Debug cmi_make_result
       ansible.builtin.debug:
         var: cmi_make_result.stdout_lines
-      when: cmi_dont_make is not defined and cmi_debug is defined
+      when: not cmi_dont_make and cmi_debug
+
+    - name: Debug cmi_dont_makeinstall
+      ansible.builtin.debug:
+        var: cmi_dont_makeinstall
+      when: cmi_debug
 
     - name: Execute make install - {{ cmi_make_install_cmd }}
       ansible.builtin.shell: |
@@ -115,17 +142,17 @@
         creates: "{{ status_dir.stdout }}/{{ cmi_step }}.installed"
       environment: "{{ proxy_env }}"
       register: cmi_makeinstall_result
-      when: cmi_dont_makeinstall is not defined
+      when: not cmi_dont_makeinstall
 
     - name: Debug cmi_makeinstall_result
       ansible.builtin.debug:
         var: cmi_makeinstall_result.stdout_lines
-      when: cmi_dont_makeinstall is not defined and cmi_debug is defined
+      when: not cmi_dont_makeinstall and cmi_debug
 
     - name: Debug cmi_postinstall
       ansible.builtin.debug:
         var: cmi_postinstall
-      when: cmi_postinstall is defined and cmi_debug is defined
+      when: cmi_postinstall and cmi_debug
 
     - name: Run postinstall commands - {{ cmi_postinstall }}
       ansible.builtin.shell: |
@@ -134,27 +161,32 @@
       args:
         chdir: "{{ extract_dir.stdout }}"
         creates: "{{ status_dir.stdout }}/{{ cmi_step }}.postinstalled"
-      when: cmi_postinstall is defined
+      when: cmi_postinstall
       environment: "{{ proxy_env }}"
       register: cmi_postinstall_result
 
     - name: Debug cmi_postinstall_result
       ansible.builtin.debug:
         var: cmi_postinstall_result.stdout_lines
-      when: cmi_debug is defined
+      when: cmi_debug
+
+    - name: Debug cmi_dont_clean
+      ansible.builtin.debug:
+        var: cmi_dont_clean
+      when: cmi_debug
 
     - name: Clean up build - remove directory
       ansible.builtin.file:
         path: "{{ extract_dir.stdout }}"
         state: absent
-      when: cmi_dont_clean is not defined
+      when: not cmi_dont_clean
       environment: "{{ proxy_env }}"
       register: cmi_cleanup_result
 
     - name: Debug cmi_cleanup_result
       ansible.builtin.debug:
         var: cmi_cleanup_result.stdout_lines
-      when: cmi_debug is defined
+      when: cmi_debug
 
     - name: Done - Create the status file
       ansible.builtin.file:

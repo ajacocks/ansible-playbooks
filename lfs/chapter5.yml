@@ -10,6 +10,7 @@
       vars:
         cmi_step: 5.2
         cmi_archive: binutils-2.42.tar.xz
+        cmi_build_in_build: true
         cmi_configure_command: |
           ../configure --prefix={{ proxy_env.LFS }}/tools \
           --with-sysroot={{ proxy_env.LFS }} \
@@ -18,7 +19,6 @@
           --enable-gprofng=no \
           --disable-werror \
           --enable-default-hash-style=gnu
-        cmi_build_in_build: true
 
     - name: Build gcc-13.2.0.tar.xz - Pass 1
       ansible.builtin.import_role:
