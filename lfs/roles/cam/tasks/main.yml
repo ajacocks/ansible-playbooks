@@ -1,0 +1,52 @@
+---
+# tasks file for checkandmount
+
+- name: Check to see if partition is mounted on {{ cam_mountpoint }}
+  ansible.builtin.command:
+    grep ' {{ cam_mountpoint }} ' /proc/mounts
+  changed_when: false
+  failed_when: false
+  register: mounted
+
+- name: Debug mounted
+  ansible.builtin.debug:
+    var: mounted
+  when: cam_debug is defined
+
+- name: Mount partition
+  ansible.posix.mount:
+    path: "{{ cam_mountpoint }}"
+    src: "{{ cam_device }}"
+    fstype: "{{ cam_fstype }}"
+    state: ephemeral
+  become: true
+  when: mounted.rc != 0 and cam_fstype == "ext4"
+  register: mountresult
+
+- name: Mount partition manually (with fstype)
+  ansible.builtin.shell: |
+    mount -v -t {{ cam_fstype }} {{ cam_extraopts }} {{ cam_device }} {{ cam_mountpoint }}
+  become: true
+  when: mounted.rc != 0 and cam_fstype != "ext4" and cam_fstype != ""
+  register: mountresult_mwf
+  failed_when: mountresult_mwf.rc != 0
+
+- name: Debug mountresult_mwf
+  ansible.builtin.debug:
+    var: mountresult_mwf
+  when: cam_debug is defined
+
+- name: Mount partition manually (without fstype)
+  ansible.builtin.shell: |
+    mount -v {{ cam_extraopts }} {{ cam_device }} {{ cam_mountpoint }}
+  become: true
+  when: mounted.rc != 0 and cam_fstype == ""
+  register: mountresult_mwof
+  failed_when: mountresult_mwof.rc != 0
+
+- name: Debug mountresult_mwof
+  ansible.builtin.debug:
+    var: mountresult_mwof
+  when: cam_debug is defined
+
+...

@@ -181,28 +181,40 @@
             - swap
             - root
 
-        - name: Mount root and boot partitions
-          ansible.posix.mount:
-            path: "{{ devices['disk'][item]['mountpoint'] }}"
-            src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
-            fstype: "{{ devices['disk'][item]['format'] }}"
-            state: mounted
-          become: true
-          when: devices['disk'][item]['mountpoint'] is not mount
+        - name: "Mount boot and root filesystems"
+          ansible.builtin.include_role:
+            name: cam
+          vars:
+            cam_device: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
+            cam_mountpoint: "{{ devices['disk'][item]['mountpoint'] }}"
+            cam_fstype: "{{ devices['disk'][item]['format'] }}"
           loop:
-            - root
             - boot
+            - root
 
-        - name: Remove root and boot partitions from fstab
-          ansible.posix.mount:
-            path: "{{ devices['disk'][item]['mountpoint'] }}"
-            src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
-            fstype: "{{ devices['disk'][item]['format'] }}"
-            state: absent_from_fstab
-          become: true
-          loop:
-            - root
-            - boot
+#        - name: Mount root and boot partitions
+#          ansible.posix.mount:
+#            path: "{{ devices['disk'][item]['mountpoint'] }}"
+#            src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
+#            fstype: "{{ devices['disk'][item]['format'] }}"
+#            state: ephemeral
+#          become: true
+          # when: devices['disk'][item]['mountpoint'] is not mount
+#          loop:
+#            - root
+#            - boot
+#          register: mountresult
+#
+#        - name: Remove root and boot partitions from fstab
+#          ansible.posix.mount:
+#            path: "{{ devices['disk'][item]['mountpoint'] }}"
+#            src: "{{ devices['disk']['prefix'] }}{{ devices['disk'][item]['id'] }}"
+#            fstype: "{{ devices['disk'][item]['format'] }}"
+#            state: absent_from_fstab
+#          become: true
+#          loop:
+#            - root
+#            - boot
 
     - name: Create group lfs
       ansible.builtin.group:

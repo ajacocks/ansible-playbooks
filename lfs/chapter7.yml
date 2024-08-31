@@ -13,13 +13,13 @@
         recurse: true
       loop:
         - usr
-        - lib
         - var
         - etc
-        - bin
-        - sbin
         - tools
-      ignore_errors: true
+        # remove symlinked dirs as they cause errors, and are unnecessary
+        # - lib
+        # - bin
+        # - sbin
 
     - name: Change ownership on to root:root on x86_64 for {{ proxy_env.LFS~'/lib64' }}
       ansible.builtin.file:
@@ -57,56 +57,39 @@
     - name: Mount and populate /dev
       block:
 
-        - name: Get status of {{ proxy_env.LFS~'/dev/null' }}
-          ansible.builtin.stat:
-            path: "{{ proxy_env.LFS~'/dev/null' }}"
-          register: devfs
-
-        - name: Debug devfs variable
-          ansible.builtin.debug:
-            var: devfs
-
-        - name: Mount /dev
-          ansible.builtin.shell: |
-            mount -v --bind /dev {{ proxy_env.LFS }}/dev
-          when: devfs.stat.exists is false
-#         when: proxy_env.LFS~'/dev' is not mount
-
-        - name: Get status of {{ proxy_env.LFS~'/dev/null' }}
-          ansible.builtin.stat:
-            path: "{{ proxy_env.LFS~'/dev/pts' }}"
-          register: devpts
-
-        - name: Debug devpts variable
-          ansible.builtin.debug:
-            var: devpts
-
-        - name: Mount /dev/pts
-          ansible.builtin.shell: |
-            mount -vt devpts devpts -o gid=5,mode=0620 {{ proxy_env.LFS }}/dev/pts
-          when: proxy_env.LFS~'/dev/pts' is not mount
-
-        - name: Mount /proc
-          ansible.builtin.shell: |
-            mount -vt proc proc {{ proxy_env.LFS }}/proc
-          when: proxy_env.LFS~'/proc' is not mount
-
-        - name: Mount /sys
-          ansible.builtin.shell: |
-            mount -vt sysfs sysfs {{ proxy_env.LFS }}/sys
-          when: proxy_env.LFS~'/sys' is not mount
-
-        - name: Mount /run
-          ansible.builtin.shell: |
-            mount -vt tmpfs tmpfs {{ proxy_env.LFS }}/run
-          when: proxy_env.LFS~'/run' is not mount
+        - name: "Mount system filesystems"
+          ansible.builtin.include_role:
+            name: cam
+          vars:
+            cam_device: "{{ item.device }}"
+            cam_mountpoint: "{{ item.mountpoint }}"
+            cam_fstype: "{{ item.fstype }}"
+            cam_extraopts: "{{ item.extraopts }}"
+          loop:
+            - device: /dev
+              mountpoint: "{{ proxy_env.LFS }}/dev"
+              fstype: ""
+              extraopts: "--bind"
+            - device: /dev/pts
+              mountpoint: "{{ proxy_env.LFS }}/dev/pts"
+              fstype: "devpts"
+              extraopts: "-o gid=5,mode=0620"
+            - device: sysfs
+              mountpoint: "{{ proxy_env.LFS }}/sys"
+              fstype: "sysfs"
+              extraopts: ""
+            - device: tmpfs
+              mountpoint: "{{ proxy_env.LFS }}/run"
+              fstype: "tmpfs"
+              extraopts: ""
 
         - name: Mount /dev/shm
           ansible.builtin.shell: |
             if [ -h {{ proxy_env.LFS }}/dev/shm ]; then
               install -v -d -m 1777 {{ proxy_env.LFS }}$(realpath /dev/shm)
             else
-              mount -vt tmpfs -o nosuid,nodev tmpfs {{ proxy_env.LFS }}/dev/shm
+              grep ' {{ proxy_env.LFS }}/dev/shm ' /proc/mounts || \
+                mount -vt tmpfs -o nosuid,nodev tmpfs {{ proxy_env.LFS }}/dev/shm
             fi
           when: proxy_env.LFS~'/run' is not mount
 
