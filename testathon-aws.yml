@@ -7,6 +7,7 @@
 
     - name: gather information about an AMI using ami-id
       amazon.aws.ec2_ami_info:
-        image_ids: ami-5b488823
+        image_ids: ami-0aa8fc2422063977a
+        region: us-east-2
 
 ...
