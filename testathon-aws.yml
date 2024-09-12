@@ -1,0 +1,12 @@
+---
+
+- name: test new PAH repository content
+  hosts: all
+
+  tasks:
+
+    - name: gather information about an AMI using ami-id
+      amazon.aws.ec2_ami_info:
+        image_ids: ami-5b488823
+
+...
