@@ -9,5 +9,10 @@
       amazon.aws.ec2_ami_info:
         image_ids: ami-0aa8fc2422063977a
         region: us-east-2
+      register: result
+
+    - name: display AMI info
+      ansible.builtin.debug:
+        var: result
 
 ...
