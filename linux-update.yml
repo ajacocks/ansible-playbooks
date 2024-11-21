@@ -1,0 +1,46 @@
+---
+- name: Patching and Updating Linux Systems
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update Debian-based Systems
+      when: ansible_os_family == 'Debian'
+      block:
+        - name: update packages with apt
+          apt:
+            name: '*'
+            state: 'latest'
+            update_cache: true
+            only_upgrade: true
+          register: apt_update_status
+
+        - name: Remove packages not needed anymore
+          apt:
+            autoremove: true
+
+        - name: Reboot when packages were updated
+          reboot:
+            post_reboot_delay: 60
+          when: apt_update_status.changed
+
+    - name: Update RHEL-based Systems
+      when: ansible_os_family == 'RedHat'
+      block:
+        - name: update packages with yum
+          yum:
+            name: '*'
+            state: latest
+            update_cache: yes
+            update_only: yes
+          register: yum_update_status
+        
+        - name: Remove packates not needed anymore
+          yum:
+            autoremove: yes
+      
+        - name: Reboot when packages were updated
+          reboot:
+          when: yum_update_status.changed
+
+...
