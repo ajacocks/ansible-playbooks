@@ -5,7 +5,7 @@
   vars:
     deps:
       - curl
-      - policycoreutils-python
+      - python3-policycoreutils
       - openssh-server
       - perl
     services:
