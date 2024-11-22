@@ -38,6 +38,7 @@
         name: sendmail
         state: stopped
         enabled: false
+      ignore_errors: true
 
     - name: Remove sendmail package
       ansible.builtin.package:
