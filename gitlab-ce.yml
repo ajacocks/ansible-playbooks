@@ -66,6 +66,9 @@
       ansible.builtin.command: /tmp/gitlab-ce.sh
       args:
         creates: /etc/yum.repos.d/gitlab_gitlab-ee.repo
+      environment:
+        os: el
+        dist: 9 
 
     - name: Install the gitlab-ee package
       ansible.builtin.package:
