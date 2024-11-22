@@ -11,6 +11,9 @@
     services:
       - http
       - https
+    gl_pkgs:
+      - python3-gitlab
+      - python3-requests
     ce_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh"
 
   tasks:
@@ -68,7 +71,7 @@
         creates: /etc/yum.repos.d/gitlab_gitlab-ee.repo
       environment:
         os: el
-        dist: 9 
+        dist: 9
 
     - name: Install the gitlab-ee package
       ansible.builtin.package:
@@ -76,6 +79,11 @@
         state: present
       environment:
         EXTERNAL_URL: "https://{{ inventory_hostname }}"
+
+    - name: Install gl_pkgs packages
+      ansible.builtin.package:
+        name: "{{ gl_pkgs }}"
+        state: present
 
 ...
 

@@ -3,29 +3,18 @@
 - name: Configure user in gitlab
   hosts: all
 
-  vars:
-    deps:
-      - python3-gitlab
-      - python3-requests
-
   tasks:
-
-    - name: Install dependency packages
-      ansible.builtin.package:
-        name: "{{ item }}"
-        state: present
-      loop: "{{ deps | flatten(levels=1) }}"
 
     - name: Create GitLab group
       community.general.gitlab_group:
-        api_url: "{{ inventory_hostname }}"
+        api_url: "https://{{ inventory_hostname }}"
         validate_certs: false
         name: users
         state: present
 
     - name: Create GitLab user
       community.general.gitlab_user:
-        api_url: "{{ inventory_hostname }}"
+        api_url: "https://{{ inventory_hostname }}"
         validate_certs: false
         name: Test User
         username: user1
