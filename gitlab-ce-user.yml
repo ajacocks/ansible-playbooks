@@ -10,7 +10,7 @@
         api_url: "https://{{ inventory_hostname }}"
         api_token: "{{ gl_token }}"
         validate_certs: false
-        name: users
+        name: group1
         state: present
 
     - name: Create GitLab user
@@ -23,7 +23,7 @@
         password: "{{ user1_password }}"
         email: me@example.com
         state: present
-        group: users
+        group: group1
         access_level: owner
 
 ...
