@@ -27,10 +27,11 @@
 
     - name: Enable needed services in firewalld permanently and immediately
       ansible.posix.firewalld:
-        service: "{{ services }}"
+        service: "{{ item }}"
         permanent: true
         immediate: true
         state: enabled
+      loop: "{{ services }}"
 
     - name: Disable and stop sendmail
       ansible.builtin.service:
