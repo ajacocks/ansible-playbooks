@@ -1,0 +1,76 @@
+---
+
+- name: Install GitLab CE
+  hosts: all
+  vars:
+    deps:
+      - curl
+      - policycoreutils-python
+      - openssh-server
+      - perl
+    services:
+      - http
+      - https
+    ce_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh"
+
+  tasks:
+    - name: Install package dependencies for gitlab-ce
+      ansible.builtin.package:
+        name: "{{ deps }}"
+        state: present
+
+    - name: Start and enable openssh-server
+      ansible.builtin.service:
+        name: sshd
+        state: started
+        enabled: true
+
+    - name: Enable needed services in firewalld permanently and immediately
+      ansible.posix.firewalld:
+        service: "{{ services }}"
+        permanent: true
+        immediate: true
+        state: enabled
+
+    - name: Disable and stop sendmail
+      ansible.builtin.service:
+        name: sendmail
+        state: stopped
+        enabled: false
+
+    - name: Remove sendmail package
+      ansible.builtin.package:
+        name: sendmail
+        state: absent
+
+    - name: Install postfix package
+      ansible.builtin.package:
+        name: postfix
+        state: present
+
+    - name: Start and enable postfix service
+      ansible.builtin.service:
+        name: postfix
+        state: started
+        enabled: true
+
+    - name: Download repository installation script
+      ansible.builtin.get_url:
+        url: "{{ ce_script_url }}"
+        dest: /tmp/gitlab-ce.sh
+        mode: '0755'
+
+    - name: Execute downloaded installation script
+      ansible.builtin.command: /tmp/gitlab-ce.sh
+      args:
+        creates: /etc/yum.repos.d/gitlab_gitlab-ee.repo
+
+    - name: Install the gitlab-ee package
+      ansible.builtin.package:
+        name: gitlab-ee
+        state: present
+      environment:
+        EXTERNAL_URL: "https://{{ inventory_hostname }}"
+
+...
+
