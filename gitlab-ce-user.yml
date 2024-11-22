@@ -8,6 +8,7 @@
     - name: Create GitLab group
       community.general.gitlab_group:
         api_url: "https://{{ inventory_hostname }}"
+        api_token: "{{ gl_token }}"
         validate_certs: false
         name: users
         state: present
@@ -15,6 +16,7 @@
     - name: Create GitLab user
       community.general.gitlab_user:
         api_url: "https://{{ inventory_hostname }}"
+        api_token: "{{ gl_token }}"
         validate_certs: false
         name: Test User
         username: user1
