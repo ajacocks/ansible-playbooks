@@ -8,6 +8,7 @@
       - python3-policycoreutils
       - openssh-server
       - perl
+      - python3-firewall
     services:
       - http
       - https
@@ -17,6 +18,19 @@
     ce_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh"
 
   tasks:
+    - name: Install EPEL release GPG key from https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL
+      ansible.builtin.rpm_key:
+        key: "{{ item }}"
+        state: present
+      loop:
+        - https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL
+        - https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+
+    - name: Add epel repo for RHEL 9
+      ansible.builtin.package:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+        state: present
+
     - name: Install package dependencies for gitlab-ce
       ansible.builtin.package:
         name: "{{ deps }}"
@@ -28,13 +42,13 @@
         state: started
         enabled: true
 
-    - name: Enable needed services in firewalld permanently and immediately
-      ansible.posix.firewalld:
-        service: "{{ item }}"
-        permanent: true
-        immediate: true
-        state: enabled
-      loop: "{{ services }}"
+    #- name: Enable needed services in firewalld permanently and immediately
+    #  ansible.posix.firewalld:
+    #    service: "{{ item }}"
+    #    permanent: true
+    #    immediate: true
+    #    state: enabled
+    #  loop: "{{ services }}"
 
     - name: Disable and stop sendmail
       ansible.builtin.service:
@@ -65,6 +79,32 @@
         dest: /tmp/gitlab-ce.sh
         mode: '0755'
 
+    - name: Create the directory '/etc/gitlab'
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/gitlab
+        - /etc/gitlab/ssl
+
+    - name: Create private key (RSA, 4096 bits) for gitlab
+      community.crypto.openssl_privatekey:
+        path: /etc/gitlab/ssl/gitlab.key
+
+    - name: Create simple self-signed certificate
+      community.crypto.x509_certificate:
+        path: /etc/gitlab/ssl/gitlab.crt
+        privatekey_path: /etc/gitlab/ssl/gitlab.key
+        provider: selfsigned
+
+    - name: Create the file '/etc/gitlab/gitlab.rb' from the template 'gitlab.rb.j2'
+      ansible.builtin.template:
+        src: gitlab.rb.j2
+        dest: /etc/gitlab/gitlab.rb
+        mode: '0644'
+      register: gitlab_config
+
     - name: Execute downloaded installation script
       ansible.builtin.command: /tmp/gitlab-ce.sh
       args:
@@ -84,6 +124,12 @@
       ansible.builtin.package:
         name: "{{ gl_pkgs }}"
         state: present
+    
+    - name: Run gitlab-ctl reconfigure when /etc/gitlab/gitlab.rb is updated
+      ansible.builtin.command: gitlab-ctl reconfigure
+      args:
+        creates: /var/opt/gitlab/bootstrapped
+      when: gitlab_config.changed
 
 ...
 
