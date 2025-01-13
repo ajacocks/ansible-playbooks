@@ -1,0 +1,19 @@
+[Unit]
+Description=Minecraft Server
+After=network.target
+
+[Service]
+User=minecraft
+Nice=1
+KillMode=none
+SuccessExitStatus=0 1
+ProtectHome=true
+ProtectSystem=full
+PrivateDevices=true
+NoNewPrivileges=true
+WorkingDirectory=/opt/minecraft
+ExecStart=/usr/bin/java -Xmx{{ max_ram }} -Xms{{ min_ram }} -jar minecraft_server.jar nogui
+ExecStop=/opt/mcrcon/bin/mcrcon -H 127.0.0.1 -P 25575 -p {{ password }} stop
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,130 @@
+---
+
+# https://www.digitalocean.com/community/tutorials/how-to-create-a-minecraft-server-on-ubuntu-22-04
+# https://mcversions.net/
+- name: Install a minecraft server on Ubuntu
+  hosts: minecraft
+  become: true
+
+  environment:
+    PREFIX: /opt/mcrcon
+
+  tasks:
+
+    - name: Install required Ubuntu PPAs
+      ansible.builtin.apt_repository:
+        repo: "{{ item }}"
+        state: present
+      loop:
+        - ppa:openjdk-r/ppa
+
+    - name: Install required packages
+      ansible.builtin.package:
+        name:
+          - openjdk-21-jre-headless
+          - screen
+          - git
+          - acl
+          - coreutils
+          - build-essential
+        state: present
+
+    - name: Create minecraft user
+      ansible.builtin.user:
+        name: minecraft
+        state: present
+        shell: /bin/bash
+        comment: Minecraft server user
+
+    - name: Clone git repo for mcrcon
+      ansible.builtin.git:
+        repo: https://github.com/Tiiffi/mcrcon.git
+        dest: /home/minecraft/src/mcrcon
+        version: v0.7.2
+      become_user: minecraft
+      become: true
+
+    - name: Compile mcrcon
+      ansible.builtin.command:
+        cmd: make
+        chdir: ~minecraft/src/mcrcon
+        creates: ~minecraft/src/mcrcon/mcrcon
+      become_user: minecraft
+      become: true
+
+    - name: Install mcrcon
+      ansible.builtin.command:
+        cmd: make install
+        chdir: ~minecraft/src/mcrcon
+        creates: /opt/mcrcon/bin/mcrcon
+
+    - name: Enable needed firewall ports
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '25565'
+        - '25575'
+
+    - name: Create /opt/minecraft directory
+      ansible.builtin.file:
+        path: /opt/minecraft
+        owner: minecraft
+        group: minecraft
+        mode: '0755'
+        state: directory
+
+    - name: Download appropriate minecraft_server.jar (1.21.4)
+      ansible.builtin.get_url:
+        url: "{{ v1_21_4 }}"
+        dest: /opt/minecraft/minecraft_server.jar
+        mode: '0755'
+        owner: minecraft
+        group: minecraft
+
+    - name: Start the minecraft_server.jar for the first time, if /opt/minecraft/eula.txt is not present
+      ansible.builtin.shell:
+        cmd: set -o pipefail && java -Xms{{ min_ram }} -Xmx{{ max_ram }} -jar minecraft_server.jar nogui 2>&1 | tee ~minecraft/server.log
+        executable: /bin/bash
+        chdir: /opt/minecraft
+        creates: /opt/minecraft/eula.txt
+      become_user: minecraft
+      become: true
+
+    - name: Install the file /opt/minecraft/eula.txt
+      ansible.builtin.copy:
+        dest: /opt/minecraft/eula.txt
+        src: eula.txt
+        mode: '0644'
+        owner: minecraft
+        group: minecraft
+
+    - name: Update minecraft server.properties file replacing server.properties
+      ansible.builtin.lineinfile:
+        path: /opt/minecraft/server.properties
+        regexp: "{{ item.rxp }}"
+        line: "{{ item.lin }}"
+        mode: '0644'
+        owner: minecraft
+        group: minecraft
+      no_log: true
+      loop:
+        - rxp: '^enable-rcon=.*'
+          lin: "enable-rcon=true"
+        - rxp: '^level-name=.*'
+          lin: "level-name={{ level_name }}"
+        - rxp: '^rcon.password=.*'
+          lin: "rcon.password={{ password }}"
+        - rxp: '^motd=.*'
+          lin: "motd={{ motd }}"
+
+    - name: Install systemd unit file
+      ansible.builtin.template:
+        src: minecraft_server.service.j2
+        dest: /etc/systemd/system/minecraft.service
+        owner: root
+        group: root
+        mode: '0644'
+
+...
