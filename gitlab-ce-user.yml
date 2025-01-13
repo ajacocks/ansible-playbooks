@@ -5,6 +5,17 @@
 
   tasks:
 
+    - name: Install python3.11-pip package
+      become: true
+      ansible.builtin.package:
+        name: python3.11-pip
+        state: present
+
+    - name: Install gitlab python module
+      ansible.builtin.pip:
+        name: python-gitlab
+        state: present
+
     - name: Create GitLab group
       community.general.gitlab_group:
         api_url: "https://{{ inventory_hostname }}"
