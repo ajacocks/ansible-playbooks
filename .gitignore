@@ -1,1 +1,3 @@
 lfs/.vscode/settings.json
+**/group_vars
+**/host_vars
