@@ -1,0 +1,114 @@
+---
+
+- name: Provision VCF AWS-hosted forum instance
+  hosts: localhost
+
+  vars:
+    instance_type: c6a.xlarge
+    instance_name: forum
+    instance_region: us-east-1
+    instance_ami: ami-0c7af5fe939f2677f # RHEL-9.5.0_HVM-20241211-x86_64-0-Hourly2-GP3 us-east-1
+    instance_sg: sg-0ab2d8bee185eb81c
+    instance_key_name: vcfed
+
+  tasks:
+    - name: Create a new reserved instance of the type and name specified, in the region specified
+      amazon.aws.ec2_instance:
+        state: present
+        region: "{{ instance_region }}"
+        name: "{{ instance_name }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ instance_ami }}"
+        key_name: "{{ instance_key_name }}"
+        wait: true
+        wait_timeout: 500
+        security_group: "{{ instance_sg }}"
+        tags:
+          Name: "{{ instance_name }}"
+
+- name: Configure software on VCF AWS-hosted forum instance
+  hosts: tag_Name_forum
+
+  vars:
+    epel_gpg_key: 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9'
+    epel_package: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm'
+    remi_gpg_keys:
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2025'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2024'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2023'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2022'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2021'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2020'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2019'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2019'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2017'
+    remi_package: 'https://rpms.remirepo.net/enterprise/remi-release-9.rpm'
+
+    packages:
+      - httpd
+      - mariadb-backup
+      - mariadb-common
+      - mariadb-server
+      - oniguruma5php
+      - php
+      - php-cli
+      - php-common
+      - php-fpm
+      - php-gd
+      - php-gmp
+      - php-intl
+      - php-mbstring
+      - php-mysqlnd
+      - php-opcache
+      - php-pdo
+      - php-pecl-imagick
+      - php-pecl-zip
+      - php-soap
+      - php-sodium
+      - php-xml
+
+  tasks:
+
+    - name: Download repo keys and packages
+      ansible.builtin.get_url:
+        url: "{{ item }}"
+        dest: /tmp
+        mode: '0644'
+      loop:
+        - "{{ epel_package }}"
+        - "{{ remi_package }}"
+
+    - name: Install EPEL repo gpg key
+      become: true
+      ansible.builtin.rpm_key:
+        key: "{{ epel_gpg_key }}"
+        state: present
+
+    - name: Install EPEL repo package
+      become: true
+      ansible.builtin.dnf:
+        name: "/tmp/{{ epel_package | regex_replace('.*/', '') }}"
+        state: present
+
+    - name: Install Remi repo gpg keys
+      become: true
+      ansible.builtin.rpm_key:
+        key: "{{ item }}"
+        state: present
+      loop: "{{ remi_gpg_keys }}"
+
+    - name: Install Remi repo pacakges
+      become: true
+      ansible.builtin.dnf:
+        name: "/tmp/{{ remi_package | regex_replace('.*/', '') }}"
+        state: present
+
+    - name: Install required packages for services
+      become: true
+      ansible.builtin.package:
+        name: "{{ packages }}"
+        state: present
+
+
+...
