@@ -3,14 +3,6 @@
 - name: Provision VCF AWS-hosted forum instance
   hosts: localhost
 
-  vars:
-    instance_type: c6a.xlarge
-    instance_name: forum
-    instance_region: us-east-1
-    instance_ami: ami-0c7af5fe939f2677f # RHEL-9.5.0_HVM-20241211-x86_64-0-Hourly2-GP3 us-east-1
-    instance_sg: sg-0ab2d8bee185eb81c
-    instance_key_name: vcfed
-
   tasks:
     - name: Create a new reserved instance of the type and name specified, in the region specified
       amazon.aws.ec2_instance:
@@ -30,6 +22,8 @@
   hosts: tag_Name_forum
 
   vars:
+    xf_archives_dir: ~/xf-archives
+    xf_staging_dir: ~/xf-staging
     epel_gpg_key: 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9'
     epel_package: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm'
     remi_gpg_keys:
@@ -67,6 +61,8 @@
       - php-soap
       - php-sodium
       - php-xml
+      - unzip
+      - zip
 
   tasks:
 
@@ -109,6 +105,56 @@
       ansible.builtin.package:
         name: "{{ packages }}"
         state: present
+
+    - name: Setup Xenforo
+      become: true
+      block:
+
+        - name: Create xf-archives and xf_staging directories
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: '0755'
+          loop:
+            - "{{ xf_archives_dir }}"
+            - "{{ xf_staging_dir }}"
+
+        - name: Copy xf_archive and xf_addons to xf-archives dir
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: "{{ xf_archives_dir }}"
+            mode: '0644'
+          loop: "{{ xf_addons + [ xf_archive ] }}"
+
+        - name: Extract Xenforo archive to target directory
+          ansible.builtin.unarchive:
+            src: "{{ xf_archives_dir }}/{{ xf_archive }}"
+            dest: "{{ xf_staging_dir }}"
+            owner: apache
+            group: apache
+            remote_src: true
+
+        - name: Extract Xenforo addons to target directory
+          ansible.builtin.unarchive:
+            src: "{{ xf_archives_dir }}/{{ item }}"
+            dest: "{{ xf_staging_dir }}"
+            owner: apache
+            group: apache
+            remote_src: true
+          loop: "{{ xf_addons }}"
+
+        - name: Copy content from result.path/upload to xf_home recursively
+          ansible.builtin.copy:
+            src: '{{ xf_staging_dir }}/upload/'
+            dest: "{{ xf_home }}"
+            owner: apache
+            group: apache
+            remote_src: true
+
+        - name: Remove xf_staging_dir and contents
+          ansible.builtin.file:
+            path: "{{ xf_staging_dir }}"
+            state: absent
 
 
 ...
