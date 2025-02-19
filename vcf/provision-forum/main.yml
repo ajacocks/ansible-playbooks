@@ -1,9 +1,10 @@
 ---
 
-- name: Provision VCF AWS-hosted forum instance
+- name: Provision AWS-hosted forum instance
   hosts: localhost
 
   tasks:
+
     - name: Create a new reserved instance of the type and name specified, in the region specified
       amazon.aws.ec2_instance:
         state: present
@@ -17,8 +18,94 @@
         security_group: "{{ instance_sg }}"
         tags:
           Name: "{{ instance_name }}"
+      register: ec2
 
-- name: Configure software on VCF AWS-hosted forum instance
+    - name: Create db volumes
+      amazon.aws.ec2_vol:
+        instance: "{{ item.instance_id }}"
+        name: db_volume
+        volume_size: "{{ instance_db_volume_size }}"
+        volume_type: "{{ instance_volume_type }}"
+        device_name: "/dev/{{ instance_db_volume_dev }}"
+        delete_on_termination: true
+        region: "{{ instance_region }}"
+      loop: "{{ ec2.instances }}"
+      register: ec2_db_vol
+
+    - name: Create www volumes
+      amazon.aws.ec2_vol:
+        instance: "{{ item.instance_id }}"
+        name: www_volume
+        volume_size: "{{ instance_www_volume_size }}"
+        volume_type: "{{ instance_volume_type }}"
+        device_name: "/dev/{{ instance_www_volume_dev }}"
+        delete_on_termination: true
+        region: "{{ instance_region }}"
+      loop: "{{ ec2.instances }}"
+      register: ec2_www_vol
+
+    - name: Debug db_vol and www_vol
+      ansible.builtin.debug:
+        var: "{{ item }}"
+      loop:
+        - ec2_db_vol
+        - ec2_www_vol
+
+    - name: Display created instance info
+      ansible.builtin.debug:
+        var: ec2
+
+    - name: Get www volume details
+      amazon.aws.ec2_vol_info:
+        region: "{{ instance_region }}"
+        filters:
+          "tag:Name": "www_volume"
+      register: www_vol_info
+
+    - name: Get db volume details
+      amazon.aws.ec2_vol_info:
+        region: "{{ instance_region }}"
+        filters:
+          "tag:Name": "db_volume"
+      register: db_vol_info
+
+    - name: Debug db_vol and www_vol details
+      ansible.builtin.debug:
+        var: "{{ item }}"
+      loop:
+        - db_vol_info
+        - www_vol_info
+
+    - name: Store db volume serial number
+      ansible.builtin.set_fact:
+        db_volume_id: "{{ db_vol_info.volumes[0].id | replace('-', '') }}"
+
+    - name: Store www volume serial number
+      ansible.builtin.set_fact:
+        www_volume_id: "{{ www_vol_info.volumes[0].id | replace('-', '') }}"
+
+    - name: Register public IP address to designated xf hostname via route53
+      amazon.aws.route53:
+        overwrite: true
+        command: create
+        zone: "{{ xf_dns_zone }}"
+        type: A
+        ttl: 300
+        record: "{{ xf_dns_name }}"
+        value: "{{ ec2.instances[0].public_ip_address }}"
+
+    - name: Register public IP address to designated wp hostname via route53
+      amazon.aws.route53:
+        overwrite: true
+        command: create
+        zone: "{{ wp_dns_zone }}"
+        type: A
+        ttl: 300
+        record: "{{ wp_dns_name }}"
+        value: "{{ ec2.instances[0].public_ip_address }}"
+
+
+- name: Configure software on AWS-hosted forum instance
   hosts: tag_Name_forum
 
   vars:
@@ -35,7 +122,7 @@
       - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2021'
       - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2020'
       - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2019'
-      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2019'
+      - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2018'
       - 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2017'
     remi_package: 'https://rpms.remirepo.net/enterprise/remi-release-9.rpm'
 
@@ -44,6 +131,7 @@
       - mariadb-backup
       - mariadb-common
       - mariadb-server
+      - nvme-cli
       - oniguruma5php
       - php
       - php-cli
@@ -61,6 +149,7 @@
       - php-soap
       - php-sodium
       - php-xml
+      - python3-cryptography
       - unzip
       - zip
 
@@ -106,6 +195,137 @@
         name: "{{ packages }}"
         state: present
 
+    - name: Find db and www device names
+      become: true
+      ansible.builtin.shell:
+        cmd: for dev in `lsblk -o name -d -n | grep -v nvme0n1`; do printf "ln -s /dev/$dev "; sudo nvme id-ctrl -v /dev/${dev} --vendor-specific | grep ^0000 | sed -e 's/.*20 //' -e 's/\"//g' -e 's/\.//g'; done > /root/devlinks.sh
+        creates: /root/devlinks.sh
+
+    - name: Run create device links script
+      become: true
+      ansible.builtin.command:
+        cmd: sh /tmp/devlinks.sh
+        creates: "/dev/xvd?"
+
+    - name: Format db volume
+      become: true
+      community.general.filesystem:
+        fstype: ext4
+        dev: "/dev/{{ instance_db_volume_dev }}"
+        force: false
+
+    - name: Format www volume
+      become: true
+      community.general.filesystem:
+        fstype: ext4
+        dev: "/dev/{{ instance_www_volume_dev }}"
+        force: false
+
+    - name: Mount db volume
+      become: true
+      ansible.posix.mount:
+        path: "{{ instance_db_volume_mp }}"
+        src: "/dev/{{ instance_db_volume_dev }}"
+        fstype: ext4
+        boot: true
+        state: mounted
+
+    - name: Mount www volume
+      become: true
+      ansible.posix.mount:
+        path: "{{ instance_www_volume_mp }}"
+        src: "/dev/{{ instance_www_volume_dev }}"
+        fstype: ext4
+        boot: true
+        state: mounted
+
+    - name: Set owner of instance_db_volume_mp to mysql:mysql
+      become: true
+      ansible.builtin.file:
+        path: "{{ instance_db_volume_mp }}"
+        owner: mysql
+        group: mysql
+        recurse: false
+
+
+    - name: Setup certs
+      become: true
+      block:
+
+        - name: Copy the ACME private key to the server
+          ansible.builtin.copy:
+            src: "{{ le_private_key }}"
+            dest: "{{ priv_cert_dir }}/{{ le_private_key }}"
+            owner: root
+            group: root
+            mode: "0600"
+
+        - name: Copy the certificate private key to the server
+          ansible.builtin.copy:
+            src: "{{ cert_key }}"
+            dest: "{{ priv_cert_dir }}/{{ cert_key }}"
+            owner: root
+            group: root
+            mode: "0600"
+
+        - name: Make sure account exists and has given contacts. We agree to TOS.
+          community.crypto.acme_account:
+            acme_directory: "{{ le_directory }}"
+            acme_version: 2
+            account_key_src: "{{ priv_cert_dir }}/{{ le_private_key }}"
+            state: present
+            terms_agreed: true
+            contact:
+              - "mailto:{{ le_email }}"
+
+        - name: Generate an OpenSSL Certificate Signing Request with subjectAltName extension
+          community.crypto.openssl_csr:
+            path: "{{ csr_dir }}/{{ xf_dns_name }}.csr"
+            privatekey_path: "{{ priv_cert_dir }}/{{ cert_key }}"
+            subject_alt_name: "DNS:{{ xf_dns_name }}"
+
+        - name: Create a challenge for xf using an account key file.
+          community.crypto.acme_certificate:
+            account_key_src: "{{ priv_cert_dir }}/{{ le_private_key }}"
+            modify_account: false
+            src: "{{ csr_dir }}/{{ xf_dns_name }}.csr"
+            cert: "{{ crt_dir }}/{{ xf_dns_name }}.crt"
+            challenge: dns-01
+            acme_directory: "{{ le_directory }}"
+            acme_version: 2
+            # Renew if the certificate is at least 30 days old
+            remaining_days: 60
+          register: xf_challenge
+
+        - name: Create DNS record for xf dns-01 challenge
+          delegate_to: localhost
+          become: false
+          amazon.aws.route53:
+            zone: "{{ xf_dns_zone }}"
+            record: "{{ xf_challenge.challenge_data[xf_dns_name]['dns-01'].record }}"
+            type: TXT
+            ttl: 60
+            state: present
+            wait: true
+            # Note: route53 requires TXT entries to be enclosed in quotes
+            value: "{{ xf_challenge.challenge_data[xf_dns_name]['dns-01'].resource_value | community.dns.quote_txt(always_quote=true) }}"
+          when: xf_challenge is changed and xf_dns_name in xf_challenge.challenge_data
+
+        - name: Let the challenge be validated and retrieve the cert and intermediate certificate
+          community.crypto.acme_certificate:
+            account_key_src: "{{ priv_cert_dir }}/{{ le_private_key }}"
+            modify_account: false
+            src: "{{ csr_dir }}/{{ xf_dns_name }}.csr"
+            cert: "{{ crt_dir }}/{{ xf_dns_name }}.crt"
+            fullchain: "{{ crt_dir }}/{{ xf_dns_name }}-fullchain.crt"
+            chain: "{{ crt_dir }}/{{ xf_dns_name }}-intermediate.crt"
+            challenge: dns-01
+            acme_directory: "{{ le_directory }}"
+            acme_version: 2
+            remaining_days: 60
+            data: "{{ xf_challenge }}"
+          when: xf_challenge is changed
+
     - name: Setup Xenforo
       become: true
       block:
@@ -124,9 +344,9 @@
             src: "{{ item }}"
             dest: "{{ xf_archives_dir }}"
             mode: '0644'
-          loop: "{{ xf_addons + [ xf_archive ] }}"
+          loop: "{{ xf_addons + [xf_archive] }}"
 
-        - name: Extract Xenforo archive to target directory
+        - name: Extract Xenforo archive to staging directory
           ansible.builtin.unarchive:
             src: "{{ xf_archives_dir }}/{{ xf_archive }}"
             dest: "{{ xf_staging_dir }}"
@@ -134,7 +354,7 @@
             group: apache
             remote_src: true
 
-        - name: Extract Xenforo addons to target directory
+        - name: Extract Xenforo addons to staging directory
           ansible.builtin.unarchive:
             src: "{{ xf_archives_dir }}/{{ item }}"
             dest: "{{ xf_staging_dir }}"
@@ -151,10 +371,24 @@
             group: apache
             remote_src: true
 
-        - name: Remove xf_staging_dir and contents
+        - name: Apply new SELinux file context to filesystem
+          ansible.builtin.command: restorecon -irv "{{ xf_home }}"
+
+        - name: Set writable for xf data directories
           ansible.builtin.file:
-            path: "{{ xf_staging_dir }}"
-            state: absent
+            path: "{{ xf_home }}/{{ item }}"
+            state: directory
+            mode: '0777'
+          loop:
+            - data
+            - internal_data
+
+        - name: Set selinux boolean httpd_unified to true
+          become: true
+          ansible.posix.seboolean:
+            name: httpd_unified
+            state: true
+            persistent: true
 
 
 ...

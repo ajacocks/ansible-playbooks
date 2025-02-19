@@ -1,0 +1,8 @@
+---
+
+collections:
+- amazon.aws
+- community.crypto
+- community.dns
+
+...
