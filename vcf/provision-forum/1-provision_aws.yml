@@ -1,0 +1,116 @@
+---
+
+- name: Provision AWS-hosted forum instance
+  hosts: localhost
+
+  tasks:
+
+    - name: Create a new reserved instance of the type and name specified, in the region specified
+      amazon.aws.ec2_instance:
+        state: present
+        region: "{{ instance_region }}"
+        name: "{{ instance_name }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ instance_ami }}"
+        key_name: "{{ instance_key_name }}"
+        wait: true
+        wait_timeout: 500
+        security_group: "{{ instance_sg }}"
+        tags:
+          Name: "{{ instance_name }}"
+      register: ec2
+
+    - name: Create db volumes
+      amazon.aws.ec2_vol:
+        instance: "{{ item.instance_id }}"
+        name: db_volume
+        volume_size: "{{ instance_db_volume_size }}"
+        volume_type: "{{ instance_volume_type }}"
+        device_name: "/dev/{{ instance_db_volume_dev }}"
+        delete_on_termination: true
+        region: "{{ instance_region }}"
+      loop: "{{ ec2.instances }}"
+      register: ec2_db_vol
+
+    - name: Create www volumes
+      amazon.aws.ec2_vol:
+        instance: "{{ item.instance_id }}"
+        name: www_volume
+        volume_size: "{{ instance_www_volume_size }}"
+        volume_type: "{{ instance_volume_type }}"
+        device_name: "/dev/{{ instance_www_volume_dev }}"
+        delete_on_termination: true
+        region: "{{ instance_region }}"
+      loop: "{{ ec2.instances }}"
+      register: ec2_www_vol
+
+    - name: Debug db_vol and www_vol
+      ansible.builtin.debug:
+        var: "{{ item }}"
+      loop:
+        - ec2_db_vol
+        - ec2_www_vol
+
+    - name: Display created instance info
+      ansible.builtin.debug:
+        var: ec2
+
+    - name: Get www volume details
+      amazon.aws.ec2_vol_info:
+        region: "{{ instance_region }}"
+        filters:
+          "tag:Name": "www_volume"
+      register: www_vol_info
+
+    - name: Get db volume details
+      amazon.aws.ec2_vol_info:
+        region: "{{ instance_region }}"
+        filters:
+          "tag:Name": "db_volume"
+      register: db_vol_info
+
+    - name: Debug db_vol and www_vol details
+      ansible.builtin.debug:
+        var: "{{ item }}"
+      loop:
+        - db_vol_info
+        - www_vol_info
+
+    - name: Store db volume serial number
+      ansible.builtin.set_fact:
+        db_volume_id: "{{ db_vol_info.volumes[0].id | replace('-', '') }}"
+
+    - name: Store www volume serial number
+      ansible.builtin.set_fact:
+        www_volume_id: "{{ www_vol_info.volumes[0].id | replace('-', '') }}"
+
+    - name: Register public IP address to designated xf hostname via route53
+      amazon.aws.route53:
+        overwrite: true
+        command: create
+        zone: "{{ xf_dns_zone }}"
+        type: A
+        ttl: 300
+        record: "{{ xf_dns_name }}"
+        value: "{{ ec2.instances[0].public_ip_address }}"
+
+    - name: Register public IP address to designated wp hostname via route53
+      amazon.aws.route53:
+        overwrite: true
+        command: create
+        zone: "{{ wp_dns_zone }}"
+        type: A
+        ttl: 300
+        record: "{{ wp_dns_name }}"
+        value: "{{ ec2.instances[0].public_ip_address }}"
+
+    - name: Tell the user to setup ssh config
+      ansible.builtin.debug:
+        msg:
+          - "Please add the following to ~/.ssh/config:"
+          - ""
+          - "Host {{ ec2.instances[0].public_dns_name }}"
+          - "  User ec2-user"
+          - "  IdentityFile ~/.ssh/<your SSH key here>.pem"
+
+...
