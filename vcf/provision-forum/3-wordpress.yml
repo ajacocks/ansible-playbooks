@@ -1,0 +1,182 @@
+# ==============================================================================
+# WordPress Migration Playbook for RHEL-based systems
+#
+# This playbook automates the backup, transfer, and restoration of a WordPress
+# site from an old AWS EC2 instance to a new one.
+#
+# Steps:
+#
+# Step 1: Backup everything from the old server
+#
+#    1.1 Archive WordPress files including themes, plugins, and uploads
+#    1.2 Dump the WordPress database to a SQL file
+#    1.3 Backup wp-config.php file (contains database connection settings)
+#    1.4 Backup .htaccess file if it exists (contains rewrite rules)
+#    1.5 Fetch WordPress files backup to local machine
+#    1.6 Fetch database backup to local machine
+#
+# Step 2: Transfer backups to the new server
+#
+#    2.1 Copy WordPress files backup to the new server
+#    2.2 Copy database backup to the new server
+#    2.3 Copy wp-config.php to the new server
+#    2.4 Copy .htaccess to the new server if it exists
+#
+# Step 3: Restore everything on the new server
+#
+#    3.1 Extract WordPress files on the new server
+#    3.2 Restore the WordPress database on the new server
+#    3.3 Set correct ownership and permissions for WordPress files
+#
+# Step 4: Configure firewall and SELinux settings
+#
+#    4.1 Open HTTP and MySQL ports in firewalld
+#    4.2 Reload firewalld to apply new rules
+#    4.3 Set proper SELinux context for WordPress files (if SELinux is enabled)
+#
+# Step 5: Restart services to apply changes
+#
+#    5.1 Restart Apache (httpd) to apply configuration changes
+#    5.2 Restart MariaDB (MySQL) to ensure the database is running properly
+#
+# ==============================================================================
+
+- name: WordPress Migration - Backup, Transfer, and Restore
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    wordpress_user: "wordpress_user"          # Database username
+    wordpress_password: "wordpress_password"  # Database password
+    wordpress_db: "wordpress_db"              # Database name
+    wordpress_path: "/var/www/html/wordpress" # WordPress installation directory
+    backup_path: "/tmp"                       # Temporary directory for backups
+    local_backup_dir: "./backups"             # Directory for storing local backups
+    apache_service: "httpd"                   # Apache service name for RHEL
+    mysql_service: "mariadb"                  # MySQL/MariaDB service name for RHEL
+
+  tasks:
+
+    # Step 1: Backup everything from the old server
+
+    # 1.1 Archive WordPress files including themes, plugins, and uploads
+    - name: Archive WordPress files
+      ansible.builtin.command: tar -czf {{ backup_path }}/wordpress_backup.tar.gz -C {{ wordpress_path }} .
+      become: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['old_server'] }}"
+
+    # 1.2 Dump the WordPress database to a SQL file
+    - name: Dump WordPress database
+      ansible.builtin.command: mysqldump -u {{ wordpress_user }} -p'{{ wordpress_password }}' {{ wordpress_db }} > {{ backup_path }}/wordpress_db.sql
+      become: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['old_server'] }}"
+
+    # 1.3 Backup wp-config.php file (contains database connection settings)
+    - name: Backup wp-config.php
+      ansible.builtin.fetch:
+        src: "{{ wordpress_path }}/wp-config.php"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['old_server'] }}"
+
+    # 1.4 Backup .htaccess file if it exists (contains rewrite rules)
+    - name: Backup .htaccess
+      ansible.builtin.fetch:
+        src: "{{ wordpress_path }}/.htaccess"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['old_server'] }}"
+      ignore_errors: yes
+
+    # 1.5 Fetch WordPress files backup to local machine
+    - name: Fetch WordPress files backup
+      ansible.builtin.fetch:
+        src: "{{ backup_path }}/wordpress_backup.tar.gz"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['old_server'] }}"
+
+    # 1.6 Fetch database backup to local machine
+    - name: Fetch database backup
+      ansible.builtin.fetch:
+        src: "{{ backup_path }}/wordpress_db.sql"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['old_server'] }}"
+
+    # Step 2: Transfer backups to the new server
+
+    # 2.1 Copy WordPress files backup to the new server
+    - name: Copy WordPress files backup
+      ansible.builtin.copy:
+        src: "{{ local_backup_dir }}/wordpress_backup.tar.gz"
+        dest: "{{ backup_path }}/wordpress_backup.tar.gz"
+        mode: '0644'
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['new_server'] }}"
+
+    # 2.2 Copy database backup to the new server
+    - name: Copy database backup
+      ansible.builtin.copy:
+        src: "{{ local_backup_dir }}/wordpress_db.sql"
+        dest: "{{ backup_path }}/wordpress_db.sql"
+        mode: '0644'
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['new_server'] }}"
+
+    # 2.3 Copy wp-config.php to the new server
+    - name: Copy wp-config.php
+      ansible.builtin.copy:
+        src: "{{ local_backup_dir }}/wp-config.php"
+        dest: "{{ wordpress_path }}/wp-config.php"
+        mode: '0644'
+      become: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['new_server'] }}"
+
+    # 2.4 Copy .htaccess to the new server if it exists
+    - name: Copy .htaccess
+      ansible.builtin.copy:
+        src: "{{ local_backup_dir }}/.htaccess"
+        dest: "{{ wordpress_path }}/.htaccess"
+        mode: '0644'
+      become: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['new_server'] }}"
+      ignore_errors: yes
+
+    # Step 3: Restore everything on the new server
+
+    # 3.1 Extract WordPress files on the new server
+    - name: Extract WordPress files
+      ansible.builtin.unarchive:
+        src: "{{ backup_path }}/wordpress_backup.tar.gz"
+        dest: "{{ wordpress_path }}"
+        remote_src: yes
+      become: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['new_server'] }}"
+
+    # 3.2 Restore the WordPress database on the new server
+    - name: Restore WordPress database
+      ansible.builtin.command: mysql -u {{ wordpress_user }} -p'{{ wordpress_password }}' {{ wordpress_db }} < {{ backup_path }}/wordpress_db.sql
+      become: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['new_server'] }}"
+
+    # 3.3 Set correct ownership and permissions for WordPress files
+    - name: Set correct ownership
+      ansible.builtin.file:
+        path: "{{ wordpress_path }}"
+        owner: apache
+        group: apache
+        mode: '0755'
+        recurse: yes
+      become: yes
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['new_server'] }}"
