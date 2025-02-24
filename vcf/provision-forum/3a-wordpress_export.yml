@@ -1,0 +1,89 @@
+# ==============================================================================
+# WordPress (EXPORT) Migration Playbook
+#
+# Archive data on the old server & copy the archives to the new (using localhost as intermediary)
+#
+# 3a-wordpress_export.yml
+#   Also See playbook '3b' which unpacks archives created in this playbook
+#   and installs / configures them on the new server
+#
+# 3a Playbook Step Summary:
+# - Archive wordpress files
+# - Dump & Archive database
+# - Fetch Archives to local machine
+# - Copy archives to the new EC2 Instance
+#
+# ==============================================================================
+
+- name: WordPress Migration - Backup Data on the Old Server & Transfer to the New Server
+  hosts: localhost
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    # ----------------------------------------------------------------------------------
+    # Archive wordpress files
+    # ----------------------------------------------------------------------------------
+
+    - name: Archive WordPress files
+      ansible.builtin.command: tar -czf {{ backup_path }}/wordpress_backup.tar.gz -C {{ wordpress_path }} .
+      become: yes
+      delegate_to: "old_server"
+
+    # ----------------------------------------------------------------------------------
+    # Dump & Archive database
+    # ----------------------------------------------------------------------------------
+
+    - name: Dump WordPress database
+      # Note:  'single-transaction' option is needed if the database user doesn't have LOCK TABLES granted
+      ansible.builtin.shell: mysqldump --single-transaction -u {{ wordpress_dump_user }} -p'{{ wordpress_dump_password }}' {{ wordpress_db }} | gzip > {{ backup_path }}/wordpress_db.sql.gz
+      become: yes
+      delegate_to: "old_server"
+
+    - name: List files in {{ backup_path }}
+      ansible.builtin.find:
+        paths: "{{ backup_path }}"
+        file_type: file
+      register: backup_files
+      delegate_to: "old_server"
+
+    - name: Show files in {{ backup_path }}
+      ansible.builtin.debug:
+        msg: "{{ backup_files.files | map(attribute='path') | list }}"
+
+    # ----------------------------------------------------------------------------------
+    # Fetch Archives to local machine
+    # ----------------------------------------------------------------------------------
+
+    - name: Fetch WordPress files backup to local machine {{ backup_path }}
+      ansible.builtin.fetch:
+        src: "{{ backup_path }}/wordpress_backup.tar.gz"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+      delegate_to: "old_server"
+
+    - name: Fetch database backup to local machine {{ backup_path }}
+      ansible.builtin.fetch:
+        src: "{{ backup_path }}/wordpress_db.sql.gz"
+        dest: "{{ local_backup_dir }}/"
+        flat: yes
+      delegate_to: "old_server"
+
+    # ----------------------------------------------------------------------------------
+    # Copy archives to the new EC2 Instance
+    # ----------------------------------------------------------------------------------
+
+    - name: Copy WordPress files backup to the new server
+      ansible.builtin.copy:
+        src: "{{ local_backup_dir }}/wordpress_backup.tar.gz"
+        dest: "{{ backup_path }}/wordpress_backup.tar.gz"
+        mode: '0644'
+      delegate_to: "new_server"
+
+    - name: Copy database backup to the new server
+      ansible.builtin.copy:
+        src: "{{ local_backup_dir }}/wordpress_db.sql.gz"
+        dest: "{{ backup_path }}/wordpress_db.sql.gz"
+        mode: '0644'
+      delegate_to: "new_server"
