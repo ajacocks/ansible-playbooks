@@ -22,7 +22,6 @@ wordpress_admin_password: "new securepassword"              # change me
 wordpress_admin_display_name: "New Admin"                   # change me
 
 # New WordPress Site Configuration
-wordpress_site_url: "http://wordpress.server"               # change me
 site_url: localhost                                         # change me
 
 # New Apache & PHP-FPM
