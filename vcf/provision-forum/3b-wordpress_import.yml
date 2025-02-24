@@ -1,0 +1,224 @@
+# ==============================================================================
+# WordPress (IMPORT) Migration Playbook
+#
+# Unpack data archives created in step 3a, configure wordpress on the new server
+#
+# 3b-wordpress_import.yml
+#   Also See playbook '3a' which archives data on the old server and
+#   moves it to the new for use in this playbook
+#
+# 3b Playbook Step Summary:
+# - Install packages
+# - Start and configure services
+# - Configure Database
+# - Extract the WordPress File Archive
+# - Configure Wordpress
+# - Restart Services
+#
+# ==============================================================================
+
+- name: Prepare new server for WordPress restore
+  hosts: new_server
+  become: yes
+  vars_files:
+    - vars.yml
+
+  # vars:
+  #   wordpress_domain: "wordpress.server"  # Change this to the actual subdomain
+  #   mysql_root_password: "&psw@b^WLkR29%78"
+  #   wordpress_db: "WP_VCFED"
+  #   wordpress_db_user: "VCF_WP_SYS_USER"
+  #   wordpress_db_password: "dB5*7@N11KqnJ#ud"
+  #   backup_path: "/tmp"
+  #   site_url: localhost
+  #   wordpress_admin_user: bhirst
+  #   wordpress_admin_email: LouisBHirst@gmail.com
+  #   wordpress_admin_display_name: "Bart Hirst"
+  #   wordpress_admin_password: "Puh*fH%@WWy@Q7%J"
+  #   wordpress_theme: "vcf"
+  #   fallback_theme: "twentytwentyone"
+
+  tasks:
+
+    # ----------------------------------------------------------------------------------
+    # Install packages
+    # ----------------------------------------------------------------------------------
+    - name: Install Apache, MySQL, PHP, and required extensions
+      ansible.builtin.yum:
+        name:
+          - httpd
+          - mariadb-server
+          - php
+          - php-cli
+          - php-common
+          - php-mysqlnd
+          - php-fpm
+          - php-json
+          - php-xml
+          - php-mbstring
+          - php-curl
+          - php-gd
+          - unzip
+          - wget
+          - python3-PyMySQL  # for mysqladmin
+        state: present
+
+    # ----------------------------------------------------------------------------------
+    # Start and configure services
+    # ----------------------------------------------------------------------------------
+    - name: Start and enable Apache & MySQL
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - httpd
+        - mariadb
+
+    - name: Start and enable PHP-FPM service
+      ansible.builtin.systemd:
+        name: php-fpm
+        state: started
+        enabled: yes
+      become: yes
+
+    - name: Configure Apache to process PHP via PHP-FPM
+      ansible.builtin.blockinfile:
+        path: "/etc/httpd/conf.d/php.conf"
+        block: |
+          <FilesMatch \.php$>
+              SetHandler "proxy:unix:/run/php-fpm/www.sock|fcgi://localhost"
+          </FilesMatch>
+        create: yes
+      become: yes
+
+    - name: Create Apache VirtualHost for WordPress
+      ansible.builtin.template:
+        src: wordpress_vhost.j2
+        dest: "/etc/httpd/conf.d/wordpress.conf"
+      notify: Restart Apache
+
+    # ----------------------------------------------------------------------------------
+    # Configure Database
+    # ----------------------------------------------------------------------------------
+    - name: Set the MySQL root password
+      ansible.builtin.command: mysqladmin -u root password '{{ mysql_root_password }}'
+      ignore_errors: yes  # Ignore errors if password is already set
+
+    - name: Create WordPress database
+      ansible.builtin.mysql_db:
+        name: "{{ wordpress_db }}"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Create WordPress database user and grant privileges
+      ansible.builtin.mysql_user:
+        name: "{{ wordpress_db_user }}"
+        password: "{{ wordpress_db_password }}"
+        priv: "{{ wordpress_db }}.*:ALL"
+        host: "localhost"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Decompress the database backup created in step 3a
+      ansible.builtin.shell: gunzip -c {{ backup_path }}/wordpress_db.sql.gz > /tmp/wordpress_db.sql
+      become: yes
+
+    - name: Restore WordPress database from backup
+      ansible.builtin.shell: mysql -u {{ wordpress_db_user }} -p'{{ wordpress_db_password }}' {{ wordpress_db }} < /tmp/wordpress_db.sql
+      become: yes
+
+    # ----------------------------------------------------------------------------------
+    # Extract the WordPress File Archive
+    # ----------------------------------------------------------------------------------
+    - name: Ensure the new document root exists
+      ansible.builtin.file:
+        path: "{{ new_document_root }}"
+        state: directory
+        owner: apache
+        group: apache
+        mode: '0755'
+      become: yes
+
+    - name: Extract WordPress archive to the new document root
+      ansible.builtin.unarchive:
+        src: "{{ backup_path }}/wordpress_backup.tar.gz"
+        dest: "{{ new_document_root }}"
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+        owner: apache
+        group: apache
+        mode: '0755'
+      become: yes
+
+    # ----------------------------------------------------------------------------------
+    # Configure Wordpress
+    # ----------------------------------------------------------------------------------
+    - name: Download and Install WP-CLI
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+        dest: /usr/local/bin/wp
+        mode: '0755'
+
+    - name: Set WordPress database credentials with WP-CLI
+      ansible.builtin.shell: |
+        /usr/local/bin/wp config set DB_NAME "{{ wordpress_db }}" --path="{{ new_document_root }}" &&
+        /usr/local/bin/wp config set DB_USER "{{ wordpress_db_user }}" --path="{{ new_document_root }}" &&
+        /usr/local/bin/wp config set DB_PASSWORD "{{ wordpress_db_password }}" --path="{{ new_document_root }}" &&
+        /usr/local/bin/wp config set DB_HOST "localhost" --path="{{ new_document_root }}"
+      become: yes
+
+    - name: Update WordPress site URL
+      ansible.builtin.shell: |
+        /usr/local/bin/wp option update siteurl "http://{{ site_url }}" --path="{{ new_document_root }}"
+        /usr/local/bin/wp option update home "http://{{ site_url }}" --path="{{ new_document_root }}"
+      become: yes
+
+    - name: Flush WordPress rewrite rules (could be needed after site URL is changes)
+      ansible.builtin.shell: |
+        /usr/local/bin/wp rewrite flush --path="{{ new_document_root }}"
+      become: yes
+
+    - name: Ensure WordPress default theme is active
+      ansible.builtin.shell: |
+        /usr/local/bin/wp theme list --path="{{ new_document_root }}" | grep -qw "{{ wordpress_theme }}" || \
+        /usr/local/bin/wp theme activate "{{ fallback_theme }}" --path="{{ new_document_root }}"
+      become: yes
+
+    - name: Check if WordPress admin user exists
+      ansible.builtin.shell: |
+        /usr/local/bin/wp user list --field=user_login --path="{{ new_document_root }}" | grep -w "{{ wordpress_admin_user }}" || true
+      become: yes
+      register: wp_user_exists
+      changed_when: false
+
+    - name: Create a new WordPress admin user if not exists
+      ansible.builtin.shell: |
+        /usr/local/bin/wp user create "{{ wordpress_admin_user }}" "{{ wordpress_admin_email }}" \
+        --role=administrator --user_pass="{{ wordpress_admin_password }}" \
+        --display_name="{{ wordpress_admin_display_name }}" --path="{{ new_document_root }}"
+      become: yes
+      when: wp_user_exists.stdout == ""
+      register: wp_user_create
+      changed_when: "'Success' in wp_user_create.stdout"
+
+    # ----------------------------------------------------------------------------------
+    # Restart Services
+    # ----------------------------------------------------------------------------------
+
+    - name: Restart Apache and PHP-FPM
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - httpd
+        - php-fpm
+      become: yes
+
+  handlers:
+    - name: Restart Apache
+      ansible.builtin.systemd:
+        name: httpd
+        state: restarted

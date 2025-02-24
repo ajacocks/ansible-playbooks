@@ -1,0 +1,41 @@
+# -----------------------------------------------------------
+# vars.yml - Centralized variables for WordPress Migration
+# -----------------------------------------------------------
+
+# Old Wordpress Server Configs
+wordpress_path: "/var/www/html"                             # change me
+
+# Old WordPress Database Dump Credentials
+wordpress_dump_user: "<mysql user>"                         # change me
+wordpress_dump_password: "<mysql user pass>"                # change me
+
+# New WordPress Database Credentials
+wordpress_db: "DB"                                          # change me
+wordpress_db_user: "DB_USER"                                # change me
+wordpress_db_password: "new securepassword"                 # change me
+mysql_root_password: "new securepassword"                   # change me
+
+# New WordPress Admin Credentials
+wordpress_admin_user: "newadmin"                            # change me
+wordpress_admin_email: "newadmin@example.com"               # change me
+wordpress_admin_password: "new securepassword"              # change me
+wordpress_admin_display_name: "New Admin"                   # change me
+
+# New WordPress Site Configuration
+wordpress_site_url: "http://wordpress.server"               # change me
+site_url: localhost                                         # change me
+
+# New Apache & PHP-FPM
+wordpress_domain: "wordpress.server"                        # change me
+apache_service: "httpd"
+php_fpm_service: "php-fpm"
+mysql_service: "mariadb"
+
+# Backup & Restore Paths
+backup_path: "/tmp"
+local_backup_dir: "./migration_files_wp"
+new_document_root: "/var/www/html"                          # change me
+
+# New WordPress Theme
+wordpress_theme: "vcf"
+fallback_theme: "twentytwentythree"
