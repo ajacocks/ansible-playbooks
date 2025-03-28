@@ -65,11 +65,31 @@
             name: '*'
             state: latest
 
+        - name: Download repo keys and packages
+          ansible.builtin.get_url:
+            url: "{{ item }}"
+            dest: /tmp
+            mode: '0644'
+          loop:
+            - "{{ epel_package }}"
+
+        - name: Install EPEL repo gpg key
+          ansible.builtin.rpm_key:
+            key: "{{ epel_gpg_key }}"
+            state: present
+
+        - name: Install EPEL repo package
+          ansible.builtin.dnf:
+            name: "/tmp/{{ epel_package | regex_replace('.*/', '') }}"
+            state: present
+
         - name: Install package dependencies
           ansible.builtin.dnf:
             name:
               - openssl
               - python3-cryptography
+              - python3-hvac
+              - terraform
               - yum-utils
             state: present
 
@@ -231,7 +251,7 @@
         - name: Debug vault status
           ansible.builtin.debug:
             var: vault_status_parsed
-          when: debug | default( false )
+          when: debug | default(false)
 
         - name: Initialise Vault operator
           ansible.builtin.command:
@@ -282,23 +302,114 @@
         - name: Debug unseal keys
           ansible.builtin.debug:
             var: unseal_keys_result
-          when: debug | default( false )
+          when: debug | default(false)
 
         - name: Debug root token
           ansible.builtin.debug:
             var: root_token_result
-          when: debug | default( false )
+          when: debug | default(false)
 
-    - name: Unseal vault via API with unseal keys
-      when: vault_status_parsed.sealed
-      ansible.builtin.uri:
-        url: "https://{{ vault.api.addr }}:{{ vault.api.port }}/v1/sys/unseal"
-        method: PUT
-        body_format: json
-        status_code: 200
-        body:
-          key: "{{ item }}"
-      loop: "{{ unseal_keys_result.stdout_lines }}"
-      register: unseal_api_result
+    - name: Unseal vault and login with root token
+      block:
+        - name: Unseal vault via API with unseal keys
+          when: vault_status_parsed.sealed
+          ansible.builtin.uri:
+            url: "https://{{ vault.api.addr }}:{{ vault.api.port }}/v1/sys/unseal"
+            method: PUT
+            body_format: json
+            status_code: 200
+            body:
+              key: "{{ item }}"
+          loop: "{{ unseal_keys_result.stdout_lines }}"
+          register: unseal_api_result
+
+        - name: Login and use the resulting token
+          community.hashi_vault.vault_login:
+            url: "https://{{ vault.api.addr }}:{{ vault.api.port }}"
+            auth_method: token
+            token: "{{ root_token_result.stdout }}"
+          register: login_data
+
+        - name: Debug login data
+          ansible.builtin.debug:
+            var: login_data
+          when: debug | default(false)
+
+    - name: Enable vault secrets pki module
+      block:
+
+        - name: Check to see if secrets engine is enabled
+          ansible.builtin.uri:
+            url: "https://{{ vault.api.addr }}:{{ vault.api.port }}/v1/sys/mounts"
+            method: GET
+            status_code: 200
+            return_content: true
+            headers:
+              X-Vault-Token: "{{ login_data.login.auth.client_token }}"
+          register: vault_secrets_list_results
+
+        - name: Debug secrets data
+          ansible.builtin.debug:
+            var: vault_secrets_list_results.json.data
+          when: debug | default(false)
+
+        - name: Check if secrets pki enabled
+          ansible.builtin.set_fact:
+            pki_enabled: true
+          loop: "{{ lookup('dict', vault_secrets_list_results.json.data) }}"
+          when: "'pki/' in item.key"
+
+        - name: Debug secrets pki enabled
+          ansible.builtin.debug:
+            msg: Vault's secrets engine is enabled
+          when: debug | default(false) and pki_enabled | default(false)
+
+    - name: Tune vault secrets pki module
+      when: pki_enabled | default(false)
+      block:
+
+        - name: Tune vault secrets with a maximum time-to-live (TTL) of 87600 hours
+          when: pki_enabled | default(false)
+          ansible.builtin.uri:
+            url: "https://{{ vault.api.addr }}:{{ vault.api.port }}/v1/sys/mounts/pki/tune"
+            method: POST
+            body_format: json
+            status_code: [200, 204]
+            return_content: true
+            headers:
+              X-Vault-Token: "{{ login_data.login.auth.client_token }}"
+            body:
+              max_lease_ttl: "87600h"
+          register: pki_tune_api_result
+
+        - name: Debug secrets pki tuning
+          ansible.builtin.debug:
+            var: pki_tune_api_result
+          when: debug | default(false)
+
+    - name: Create intermediate CA in vault
+      when: pki_enabled | default(false)
+      block:
+
+# vault write -format=json pki_int/intermediate/generate/internal \
+#       common_name="aap.jajcs.net Intermediate Authority" \
+#       issuer_name="aap-jajcs-net-intermediate" \
+#       | jq -r '.data.csr' > pki_intermediate.csr
+
+        - name: Create certificate authority
+          community.hashi_vault.vault_write:
+            url: https://{{ vault.api.addr }}:{{ vault.api.port }}
+            path: pki/intermediate/generate/internal
+            data:
+              common_name: "aap.jajcs.net Intermediate Authority"
+              issuer_name: "aap-jajcs-net-intermediate"
+            auth_method: token
+            token: "{{ login_data.login.auth.client_token }}"
+          register: ca_create_result
+
+        - name: Debug create CA
+          ansible.builtin.debug:
+            var: ca_create_result
+          when: debug | default(false)
 
 ...
