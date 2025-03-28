@@ -1,0 +1,118 @@
+---
+
+- name: Resync primary mariadb
+  hosts: pdns_primary
+  tasks:
+
+    - name: Install required packages
+      ansible.builtin.package:
+        name:
+          - python3-PyMySQL
+          - python3-dns
+        state: present
+      become: true
+
+    - name: Run query on mariadb database
+      community.mysql.mysql_query:
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_pass }}"
+        query:
+          - RESET MASTER;
+          - FLUSH TABLES WITH READ LOCK;
+          - SHOW MASTER STATUS;
+      register: mysql_result
+
+    - name: Add temporary host to hold data
+      ansible.builtin.add_host:
+        name: temp_mariadb
+        log_file: "{{ mysql_result['query_result'][2][0]['File'] }}"
+        log_position: "{{ mysql_result['query_result'][2][0]['Position'] }}"
+
+    - name: Dump all databases
+      community.mysql.mysql_db:
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_pass }}"
+        state: dump
+        name: all
+        target: /tmp/dump.sql
+
+    - name: Pull database dump back
+      ansible.builtin.fetch:
+        src: /tmp/dump.sql
+        dest: /tmp/
+        flat: true
+
+- name: Resync secondaries to primary
+  hosts: pdns_secondary
+  tasks:
+
+    - name: Install required packages
+      ansible.builtin.package:
+        name:
+          - python3-PyMySQL
+          - python3-dns
+        state: present
+      become: true
+
+    - name: Push database dump to secondary
+      ansible.builtin.copy:
+        src: /tmp/dump.sql
+        dest: /tmp/
+        mode: '0600'
+
+    - name: Stop replication
+      community.mysql.mysql_query:
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_pass }}"
+        query:
+          - STOP REPLICA;
+
+    - name: Restore db dump
+      community.mysql.mysql_db:
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_pass }}"
+        state: import
+        name: all
+        target: /tmp/dump.sql
+
+    - name: Restart replication
+      community.mysql.mysql_query:
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_pass }}"
+        query:
+          - RESET REPLICA;
+          - CHANGE MASTER TO MASTER_LOG_FILE='{{ hostvars['temp_mariadb']['log_file'] }}', MASTER_LOG_POS={{ hostvars['temp_mariadb']['log_position'] }};
+          - START REPLICA;
+
+    - name: Get replica status
+      community.mysql.mysql_query:
+        login_user: "{{ db_user }}"
+        login_password: "{{ db_pass }}"
+        query:
+          - SHOW REPLICA STATUS;
+      register: mysql_result
+
+    - name: Debug mysql_result
+      ansible.builtin.debug:
+        var: mysql_result
+
+- name: Verify queries are functioning
+  hosts: localhost
+  tasks:
+
+    - name: Register all host IPs
+      ansible.builtin.set_fact:
+        primary_ips: "{{ groups['pdns_primary'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | list }}"
+        secondary_ips: "{{ groups['pdns_secondary'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | list }}"
+
+    - name: Verify internal DNS is working
+      ansible.builtin.debug:
+        msg: "Querying {{ item }} for IPv4 address for {{ dns_int_query }} produces {{ lookup('dig', dns_int_query, '@' + item) }}"
+      loop: "{{ primary_ips + secondary_ips }}"
+
+    - name: Verify external DNS is working
+      ansible.builtin.debug:
+        msg: "Querying {{ item }} for IPv4 address for {{ dns_ext_query }} produces {{ lookup('dig', dns_ext_query, '@' + item) }}"
+      loop: "{{ primary_ips + secondary_ips }}"
+
+...
