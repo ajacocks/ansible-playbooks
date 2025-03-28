@@ -192,7 +192,7 @@
             provider: ownca
             ownca_path: "{{ ca.certificate_path }}"
             ownca_privatekey_path: "{{ ca.privatekey_path }}"
-            ownca_not_after: +365d  # valid for three years
+            ownca_not_after: +365d  # valid for one year
             ownca_not_before: "-1d"  # valid since yesterday
             owner: vault
             group: vault
@@ -231,9 +231,7 @@
         - name: Debug vault status
           ansible.builtin.debug:
             var: vault_status_parsed
-
-        - debug:
-            var: vault
+          when: debug | default( false )
 
         - name: Initialise Vault operator
           ansible.builtin.command:
@@ -280,6 +278,16 @@
             cmd: cat "{{ vault.dir.root_token }}/rootkey"
           register: root_token_result
           changed_when: false
+
+        - name: Debug unseal keys
+          ansible.builtin.debug:
+            var: unseal_keys_result
+          when: debug | default( false )
+
+        - name: Debug root token
+          ansible.builtin.debug:
+            var: root_token_result
+          when: debug | default( false )
 
     - name: Unseal vault via API with unseal keys
       when: vault_status_parsed.sealed
