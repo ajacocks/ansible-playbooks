@@ -1,0 +1,51 @@
+---
+
+- name: Basic provision of vault host
+  become: true
+  block:
+
+    - name: Register subscription for host with Red Hat
+      community.general.redhat_subscription:
+        state: present
+        username: "{{ sub.uid }}"
+        password: "{{ sub.pass }}"
+        auto_attach: true
+
+    - name: Update all packages on system to current
+      ansible.builtin.package:
+        disablerepo: '*'
+        enablerepo:
+          - rhel-9-for-x86_64-baseos-rpms
+          - rhel-9-for-x86_64-appstream-rpms
+        name: '*'
+        state: latest
+
+    - name: Download repo keys and packages
+      ansible.builtin.get_url:
+        url: "{{ item }}"
+        dest: /tmp
+        mode: '0644'
+      loop:
+        - "{{ epel_package }}"
+
+    - name: Install EPEL repo gpg key
+      ansible.builtin.rpm_key:
+        key: "{{ epel_gpg_key }}"
+        state: present
+
+    - name: Install EPEL repo package
+      ansible.builtin.dnf:
+        name: "/tmp/{{ epel_package | regex_replace('.*/', '') }}"
+        state: present
+
+    - name: Install package dependencies
+      ansible.builtin.dnf:
+        name:
+          - openssl
+          - python3-cryptography
+          - python3-hvac
+          - terraform
+          - yum-utils
+        state: present
+
+...

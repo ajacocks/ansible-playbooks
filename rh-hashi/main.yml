@@ -1,7 +1,7 @@
 ---
 
 - name: Provision hosts for AAP-HashiCorp integrated demo
-  hosts: aap-hashi-vault-test
+  hosts: aap_hashi_vault_test
 
 # the following vars are needed for this playbook to work
 #  vars:
@@ -37,103 +37,15 @@
 #        key: /etc/vault.d/vault-key.pem
 #        cert: /etc/vault.d/vault-cert.pem
 
-  handlers:
-
-    - name: Update system ssl trust db
-      ansible.builtin.command:
-        cmd: update-ca-trust
-      become: true
-
   tasks:
 
     - name: Basic system configuration for Vault
-      become: true
-      block:
-        - name: Register subscription for host with Red Hat
-          community.general.redhat_subscription:
-            state: present
-            username: "{{ sub.uid }}"
-            password: "{{ sub.pass }}"
-            auto_attach: true
+      ansible.builtin.include_role:
+        name: vault_provision
 
-        - name: Update all packages on system to current
-          ansible.builtin.package:
-            disablerepo: '*'
-            enablerepo:
-              - rhel-9-for-x86_64-baseos-rpms
-              - rhel-9-for-x86_64-appstream-rpms
-            name: '*'
-            state: latest
-
-        - name: Download repo keys and packages
-          ansible.builtin.get_url:
-            url: "{{ item }}"
-            dest: /tmp
-            mode: '0644'
-          loop:
-            - "{{ epel_package }}"
-
-        - name: Install EPEL repo gpg key
-          ansible.builtin.rpm_key:
-            key: "{{ epel_gpg_key }}"
-            state: present
-
-        - name: Install EPEL repo package
-          ansible.builtin.dnf:
-            name: "/tmp/{{ epel_package | regex_replace('.*/', '') }}"
-            state: present
-
-        - name: Install package dependencies
-          ansible.builtin.dnf:
-            name:
-              - openssl
-              - python3-cryptography
-              - python3-hvac
-              - terraform
-              - yum-utils
-            state: present
-
-    - name: Create basic signing CA
-      become: true
-      block:
-
-        - name: Create private key with password protection
-          community.crypto.openssl_privatekey:
-            path: "{{ ca.privatekey_path }}"
-
-        - name: Create certificate signing request (CSR) for CA certificate
-          community.crypto.openssl_csr:
-            path: "{{ ca.csr_path }}"
-            privatekey_path: "{{ ca.privatekey_path }}"
-            common_name: Red Hat HashiCorp CA
-            organization_name: "Red Hat"
-            organizational_unit_name: "NA"
-            state_or_province_name: "NC"
-            locality_name: "Raleigh"
-            use_common_name_for_san: false  # since we do not specify SANs, don't use CN as a SAN
-            basic_constraints:
-              - 'CA:TRUE'
-            basic_constraints_critical: true
-            key_usage:
-              - keyCertSign
-            key_usage_critical: true
-
-        - name: Create self-signed CA certificate from CSR
-          community.crypto.x509_certificate:
-            path: "{{ ca.certificate_path }}"
-            csr_path: "{{ ca.csr_path }}"
-            privatekey_path: "{{ ca.privatekey_path }}"
-            provider: selfsigned
-
-        - name: Copy new ssl cetificate to system trusted anchors
-          ansible.builtin.copy:
-            src: "{{ ca.certificate_path }}"
-            dest: /etc/pki/ca-trust/source/anchors/vault-cert.pem
-            remote_src: true
-            owner: root
-            group: root
-            mode: '0644'
-          notify: Update system ssl trust db
+    - name: Create local OpenSSL CA for offline master
+      ansible.builtin.include_role:
+        name: openssl_ca
 
     - name: Install vault enterprise
       become: true

@@ -1,0 +1,45 @@
+---
+
+- name: Create basic signing CA
+  become: true
+  block:
+
+    - name: Create private key with password protection
+      community.crypto.openssl_privatekey:
+        path: "{{ ca.privatekey_path }}"
+
+    - name: Create certificate signing request (CSR) for CA certificate
+      community.crypto.openssl_csr:
+        path: "{{ ca.csr_path }}"
+        privatekey_path: "{{ ca.privatekey_path }}"
+        common_name: "{{ ca.cn }}"
+        organization_name: "{{ ca.o }}"
+        organizational_unit_name: "{{ ca.ou }}"
+        state_or_province_name: "{{ ca.st }}"
+        locality_name: "{{ ca.l }}"
+        use_common_name_for_san: false  # since we do not specify SANs, don't use CN as a SAN
+        basic_constraints:
+          - 'CA:TRUE'
+        basic_constraints_critical: true
+        key_usage:
+          - keyCertSign
+        key_usage_critical: true
+
+    - name: Create self-signed CA certificate from CSR
+      community.crypto.x509_certificate:
+        path: "{{ ca.certificate_path }}"
+        csr_path: "{{ ca.csr_path }}"
+        privatekey_path: "{{ ca.privatekey_path }}"
+        provider: selfsigned
+
+    - name: Copy new ssl cetificate to system trusted anchors
+      ansible.builtin.copy:
+        src: "{{ ca.certificate_path }}"
+        dest: /etc/pki/ca-trust/source/anchors/vault-cert.pem
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Update system ssl trust db
+
+...
