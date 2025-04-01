@@ -335,6 +335,13 @@
             var: login_data
           when: debug | default(false)
 
+    - name: Install terraform template to vault server
+      ansible.builtin.template:
+        src: vault.tf.j2
+        dest: vault.tf
+    
+    - fail:
+
     - name: Enable vault secrets pki module
       block:
 
