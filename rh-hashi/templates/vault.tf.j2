@@ -1,3 +1,7 @@
+provider "vault" {
+  address = "https://{{ vault.api.addr }}:{{ vault.api.port }}"
+}
+
 # create root CA
 resource "vault_mount" "pki" {
   path        = "pki"
@@ -138,20 +142,20 @@ resource "vault_pki_secret_backend_cert" "gitlab_{{ vault.resource_name }}" {
 }
 
 output "vault_pki_secret_backend_cert_gitlab_{{ vault.resource_name }}_cert" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.certificate
+  value = vault_pki_secret_backend_cert.gitlab_{{ vault.resource_name }}.certificate
 }
 
 output "vault_pki_secret_backend_cert_gitlab_{{ vault.resource_name }}_issuring_ca" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.issuing_ca
+  value = vault_pki_secret_backend_cert.gitlab_{{ vault.resource_name }}.issuing_ca
 }
 
 output "vault_pki_secret_backend_cert_gitlab_{{ vault.resource_name }}_serial_number" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.serial_number
+  value = vault_pki_secret_backend_cert.gitlab_{{ vault.resource_name }}.serial_number
 #   sensitive = true
 }
 
 output "vault_pki_secret_backend_cert_gitlab_{{ vault.resource_name }}_private_key_type" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.private_key_type
+  value = vault_pki_secret_backend_cert.gitlab_{{ vault.resource_name }}.private_key_type
 }
 
 #  vault write pki_int/issue/{{ vault.intermediate_name }} common_name="aap.{{ vault.domain }}" ttl="24h"
@@ -166,18 +170,18 @@ resource "vault_pki_secret_backend_cert" "aap_{{ vault.resource_name }}" {
 }
 
 output "vault_pki_secret_backend_cert_aap_{{ vault.resource_name }}_cert" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.certificate
+  value = vault_pki_secret_backend_cert.aap_{{ vault.resource_name }}.certificate
 }
 
 output "vault_pki_secret_backend_cert_aap_{{ vault.resource_name }}_issuring_ca" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.issuing_ca
+  value = vault_pki_secret_backend_cert.aap_{{ vault.resource_name }}.issuing_ca
 }
 
 output "vault_pki_secret_backend_cert_aap_{{ vault.resource_name }}_serial_number" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.serial_number
+  value = vault_pki_secret_backend_cert.aap_{{ vault.resource_name }}.serial_number
 #   sensitive = true
 }
 
 output "vault_pki_secret_backend_cert_aap_{{ vault.resource_name }}_private_key_type" {
-  value = vault_pki_secret_backend_cert.{{ vault.intermediate_name }}.private_key_type
+  value = vault_pki_secret_backend_cert.aap_{{ vault.resource_name }}.private_key_type
 }

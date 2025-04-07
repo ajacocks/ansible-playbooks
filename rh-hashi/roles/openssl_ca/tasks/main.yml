@@ -4,7 +4,7 @@
   become: true
   block:
 
-    - name: Create private key with password protection
+    - name: Create private key
       community.crypto.openssl_privatekey:
         path: "{{ ca.privatekey_path }}"
 
@@ -41,5 +41,8 @@
         group: root
         mode: '0644'
       notify: Update system ssl trust db
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
 
 ...

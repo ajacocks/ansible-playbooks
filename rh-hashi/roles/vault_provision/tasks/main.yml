@@ -44,7 +44,7 @@
           - openssl
           - python3-cryptography
           - python3-hvac
-          - terraform
+#          - terraform
           - yum-utils
         state: present
 
