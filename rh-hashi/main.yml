@@ -6,20 +6,10 @@
 
 # the following vars are needed for this playbook to work
 #  vars:
-#    sub:
-#      uid: <red hat subscription uid>
-#      pass: <red hat subscription password>
-
 #    terraform:
 #      license: <terraform enterprise license key>
 
 #    vault:
-#      api:
-#        addr: 127.0.0.1
-#        port: 8200
-#      cluster:
-#        addr: 172.0.0.1
-#        port: 8201
 #      license: <vault enterprise license key>
 #      config: vault.hcl
 #      unseal:
@@ -28,10 +18,6 @@
 #      dir:
 #        root_token: /root/.vault
 #        unseal_key: /root/.vault
-#      ssl:
-#        csr: /etc/vault.d/vault.csr
-#        key: /etc/vault.d/vault-key.pem
-#        cert: /etc/vault.d/vault-cert.pem
 
   roles:
     - name: vault_provision
