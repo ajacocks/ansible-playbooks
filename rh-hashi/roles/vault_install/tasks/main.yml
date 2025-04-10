@@ -77,6 +77,8 @@
           - "IP:{{ ansible_default_ipv4.address }}"
       register: r_vault_csr
 
+    # TODO generate with "provider: selfsigned" to decouple from vault CA,
+    # and eventually allow user-provided cert/key
     - name: Sign ssl certificate and key for vault
       community.crypto.x509_certificate:
         path: "{{ vault_install_vault_certificate }}"
