@@ -1,0 +1,79 @@
+---
+
+- name: Basic provision of aap host
+  become: true
+  block:
+
+    - name: Register subscription for host with Red Hat
+      community.general.redhat_subscription:
+        state: present
+        username: "{{ sub.uid }}"
+        password: "{{ sub.pass }}"
+        auto_attach: true
+
+    - name: Update all packages on system to current
+      ansible.builtin.package:
+        disablerepo: '*'
+        enablerepo:
+          - rhel-9-for-x86_64-baseos-rpms
+          - rhel-9-for-x86_64-appstream-rpms
+        name: '*'
+        state: latest
+
+    - name: Download repo keys and packages
+      ansible.builtin.get_url:
+        url: "{{ item }}"
+        dest: /tmp
+        mode: '0644'
+      loop:
+        - "{{ epel_package }}"
+
+    - name: Install EPEL repo gpg key
+      ansible.builtin.rpm_key:
+        key: "{{ epel_gpg_key }}"
+        state: present
+
+    - name: Install EPEL repo package
+      ansible.builtin.dnf:
+        name: "/tmp/{{ epel_package | regex_replace('.*/', '') }}"
+        state: present
+
+    - name: Install package dependencies
+      ansible.builtin.dnf:
+        name:
+          - ansible-core
+          - git-core
+          - rsync
+          - vim
+          - wget
+          - yum-utils
+        state: present
+
+    - name: Create aap.group group
+      ansible.builtin.group:
+        name: "{{ aap.group }}"
+        state: present
+
+    - name: Create user and group for aap to run under
+      ansible.builtin.user:
+        name: "{{ aap.user }}"
+        group: "{{ aap.group }}"
+        system: true
+
+    - name: Add aap user to group wheel
+      ansible.builtin.user:
+        name: "{{ aap.user }}"
+        groups: wheel
+        append: true
+
+    - name: Copy .ssh authorized keys from login user to ~aap
+      ansible.builtin.copy:
+        src: /home/{{ ansible_user_id }}/.ssh/authorized_keys
+        dest: "~{{ aap.user }}/.ssh/"
+        remote_src: true
+        owner: "{{ aap.user }}"
+        group: "{{ aap.group }}"
+        mode: '0644'
+
+
+...

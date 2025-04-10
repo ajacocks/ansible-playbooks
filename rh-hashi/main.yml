@@ -1,7 +1,8 @@
 ---
 
-- name: Provision hosts for AAP-HashiCorp integrated demo
-  hosts: aap_hashi_vault_test
+- name: Provision vault for AAP-HashiCorp integrated demo
+  hosts: "{{ groups['aap_hashi_vault'] }}"
+  tags: vault
 
 # the following vars are needed for this playbook to work
 #  vars:
@@ -16,6 +17,9 @@
 #      privatekey_path: /etc/pki/tls/private/ca-certificate.key
 #      certificate_path: /etc/pki/tls/certs/ca-certificate.pem
 #      csr_path: /etc/pki/tls/certs/ca-csr.pem
+
+#    epel_gpg_key: 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9'
+#    epel_package: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm'
 
 #    vault:
 #      api:
@@ -39,7 +43,7 @@
 
   roles:
     - name: vault_provision
-    - name: openssl_ca
+    - name: vault_openssl_ca
     - name: vault_install
 
   tasks:
@@ -198,6 +202,20 @@
     - name: Write certificates and keys to files
       block:
 
+        - name: Copy intermediate cert to certdir
+          ansible.builtin.copy:
+            src: "{{ terraform.dir }}/intermediate.cert.pem"
+            dest: "{{ terraform.certdir }}/"
+            mode: '0644'
+            remote_src: true
+
+        - name: Write ca certificate to file
+          ansible.builtin.copy:
+            content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_root_cert_root_2025']['value'] }}"
+            dest: "{{ terraform.certdir }}/root_2025-ca.crt"
+            mode: '0644'
+          register: root_result
+
         - name: Write chain certificates to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + vault.resource_name + '_ca_chain']['value'] }}"
@@ -206,6 +224,7 @@
           loop:
             - aap
             - gitlab
+          register: chain_result
 
         - name: Write server certificates to files
           ansible.builtin.copy:
@@ -215,6 +234,7 @@
           loop:
             - aap
             - gitlab
+          register: cert_result
 
         - name: Write server keys to files
           ansible.builtin.copy:
@@ -224,6 +244,7 @@
           loop:
             - aap
             - gitlab
+          register: key_result
 
         - name: Write serial numbers to files
           ansible.builtin.copy:
@@ -233,12 +254,89 @@
           loop:
             - aap
             - gitlab
+          register: serial_result
 
-    # tf_vault_result.outputs.vault_pki_secret_backend_cert_aap_aap_jajcs_net_cert.value
-    # tf_vault_result.outputs.vault_pki_secret_backend_cert_aap_aap_jajcs_net_ca_chain.value
-    # tf_vault_result.outputs.vault_pki_secret_backend_cert_aap_aap_jajcs_net_private_key.value
-    # tf_vault_result.outputs.vault_pki_secret_backend_cert_gitlab_aap_jajcs_net_cert.value
-    # tf_vault_result.outputs.vault_pki_secret_backend_cert_gitlab_aap_jajcs_net_issuring_ca.value
-    # tf_vault_result.outputs.vault_pki_secret_backend_cert_gitlab_aap_jajcs_net_private_key.value
+        - name: Find all certs
+          ansible.builtin.find:
+            paths: "{{ terraform.certdir }}"
+            patterns: "*"
+          register: cert_files
+
+        - name: Copy certs back
+          ansible.builtin.fetch:
+            src: "{{ item.path }}"
+            dest: "{{ local.certdir }}/"
+            flat: true
+          loop: "{{ cert_files.files }}"
+
+- name: Provision aap for AAP-HashiCorp integrated demo
+  hosts: "{{ groups['aap_hashi_aap'][0] }}"
+  tags: aap
+
+  roles:
+    - name: aap_provision
+    - name: aap_install
+
+- name: Run installation for aap
+  hosts: "{{ groups['aap_hashi_aap'][0] }}"
+  tags: aap
+  remote_user: "{{ aap.user }}"
+
+  tasks:
+
+    - name: Run the Ansible Automation Platform setup program
+      ansible.builtin.shell: "ansible-playbook -i inventory ansible.containerized_installer.install"
+      args:
+        chdir: "{{ aap.dir }}/{{ installer_extracted }}"
+      async: 10000
+      poll: 20
+      changed_when: false
+
+    - name: Wait for automation controller to be running
+      ansible.builtin.uri: # use the first host from the list if no hostname is defined
+        # url: https://{{ controller_hostname }}:{{ __aap_setup_inst_controller_port }}/
+        url: https://localhost:443/
+        method: GET
+        user: admin
+        password: "{{ aap.admin_pass }}"
+        force_basic_auth: true
+        status_code: 200
+        validate_certs: "{{ aap.validate_certs | default(omit) }}"
+      register: __aap_setup_inst_result
+      until: __aap_setup_inst_result.status == 200
+      retries: 90
+      delay: 10
+
+    - fail:
+
+    - name: Wait for automation hub to be running
+      ansible.builtin.uri: # use the first host from the list if no hostname is defined
+        url: https://{{ ah_hostname }}:{{ __aap_setup_inst_hub_port }}/api/galaxy/
+        method: GET
+        user: admin
+        password: "{{ aap_setup_prep_inv_secrets.all.hub_admin_password | default(aap_setup_prep_inv_vars.all.hub_admin_password) }}"
+        force_basic_auth: true
+        status_code: 200
+        validate_certs: "{{ ah_validate_certs | default(omit) }}"
+      register: __aap_setup_inst_result_ah
+      until: __aap_setup_inst_result_ah.status == 200
+      retries: 90
+      delay: 10
+      when: "'automationhub' in aap_setup_prep_inv_nodes"
+
+    - name: Wait for EDA controller to be running
+      ansible.builtin.uri: # use the first host from the list if no hostname is defined
+        url: https://{{ eda_hostname }}:{{ __aap_setup_inst_eda_port }}/
+        method: GET
+        user: admin
+        password: "{{ aap_setup_prep_inv_secrets.all.eda_admin_password | default(aap_setup_prep_inv_vars.all.eda_admin_password) }}"
+        validate_certs: "{{ eda_validate_certs | default('false') }}"
+        force_basic_auth: true
+      register: __aap_setup_inst_result_eda
+      until: __aap_setup_inst_result_eda.status == 200
+      retries: 90
+      delay: 10
+      when: "'automationeda' in aap_setup_prep_inv_nodes"
+
 
 ...

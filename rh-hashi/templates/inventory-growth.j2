@@ -1,0 +1,131 @@
+# This is the AAP installer inventory file intended for the Container growth deployment topology.
+# This inventory file expects to be run from the host where AAP will be installed.
+# Please consult the Ansible Automation Platform product documentation about this topology's tested hardware configuration.
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/tested_deployment_models/container-topologies
+#
+# Please consult the docs if you're unsure what to add
+# For all optional variables please consult the included README.md
+# or the Ansible Automation Platform documentation:
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation
+
+# This section is for your AAP Gateway host(s)
+# -----------------------------------------------------
+[automationgateway]
+{% for host in groups['aap_hashi_aap'] %}
+{{ host }}
+{% endfor %}
+
+# This section is for your AAP Controller host(s)
+# -----------------------------------------------------
+[automationcontroller]
+{% for host in groups['aap_hashi_aap'] %}
+{{ host }}
+{% endfor %}
+
+# This section is for your AAP Automation Hub host(s)
+# -----------------------------------------------------
+[automationhub]
+{% for host in groups['aap_hashi_aap'] %}
+{{ host }}
+{% endfor %}
+
+# This section is for your AAP EDA Controller host(s)
+# -----------------------------------------------------
+[automationeda]
+{% for host in groups['aap_hashi_aap'] %}
+{{ host }}
+{% endfor %}
+
+# This section is for the AAP database
+# -----------------------------------------------------
+[database]
+{% for host in groups['aap_hashi_aap'] %}
+{{ host }}
+{% endfor %}
+
+[all:vars]
+# Ansible
+ansible_connection=local
+
+# Common variables
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-general-inventory-variables
+# -----------------------------------------------------
+postgresql_admin_username=postgres
+postgresql_admin_password={{ aap.admin_pass }}
+
+bundle_install=true
+# The bundle directory must include /bundle in the path
+# bundle_dir='{{ lookup("ansible.builtin.env", "PWD") }}/bundle'
+bundle_dir='{{ aap.dir }}/{{ installer_extracted }}/bundle'
+
+redis_mode=standalone
+
+# AAP Gateway
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-gateway-variables
+# -----------------------------------------------------
+gateway_admin_password={{ aap.admin_pass }}
+gateway_pg_host={{ groups['aap_hashi_aap'][0] }}
+gateway_pg_password={{ aap.admin_pass }}
+
+# AAP Controller
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-controller-variables
+# -----------------------------------------------------
+controller_admin_password={{ aap.admin_pass }}
+controller_pg_host={{ groups['aap_hashi_aap'][0] }}
+controller_pg_password={{ aap.admin_pass }}
+controller_percent_memory_capacity=0.5
+
+# AAP Automation Hub
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-hub-variables
+# -----------------------------------------------------
+hub_admin_password={{ aap.admin_pass }}
+hub_pg_host={{ groups['aap_hashi_aap'][0] }}
+hub_pg_password={{ aap.admin_pass }}
+hub_seed_collections=false
+
+# AAP EDA Controller
+# https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#event-driven-ansible-controller
+# -----------------------------------------------------
+eda_admin_password={{ aap.admin_pass }}
+eda_pg_host={{ groups['aap_hashi_aap'][0] }}
+eda_pg_password={{ aap.admin_pass }}
+
+# SSL Certificate Configuration
+
+custom_ca_cert={{ aap.certdir }}/root_2025-ca.crt
+
+# Platform gateway
+gateway_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+gateway_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+gateway_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+gateway_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+gateway_redis_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+gateway_redis_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+
+# Automation controller
+controller_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+controller_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+controller_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+controller_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+
+# Automation hub
+hub_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+hub_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+hub_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+hub_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+
+# Event-Driven Ansible
+eda_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+eda_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+eda_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+eda_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+eda_redis_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+eda_redis_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+
+# PostgreSQL
+postgresql_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+postgresql_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+
+# Receptor
+# receptor_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
+# receptor_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
