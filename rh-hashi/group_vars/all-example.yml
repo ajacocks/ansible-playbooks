@@ -1,0 +1,62 @@
+---
+
+sub:
+  uid: <red hat subscription userID>
+  pass: <red hat subscription password>
+
+terraform:
+  license: <terraform license key>.hclic
+  dir: "{{ ansible_user_dir }}/terraform"
+  certdir: "{{ ansible_user_dir }}/terraform/certs"
+
+ca:
+  privatekey_path: /etc/pki/tls/private/ca-certificate.key
+  certificate_path: /etc/pki/tls/certs/ca-certificate.pem
+  csr_path: /etc/pki/tls/certs/ca-csr.pem
+  cn: Red Hat HashiCorp CA
+  o: Red Hat
+  ou: NA
+  st: NC
+  l: Raleigh
+
+epel_gpg_key: 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9'
+epel_package: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm'
+
+aap:
+  dir: "/home/aap/aap"
+  certdir: /home/aap/aap/certs
+  installer: ansible-automation-platform-containerized-setup-bundle-2.5-11.1-x86_64.tar.gz # or current ansible containerized bundle installer
+  user: aap
+  group: aap
+  admin_pass: <ansible admin password>
+  validate_certs: true
+
+installer_extracted: "{{ aap.installer | regex_replace('\\.tar.gz$', '') }}"
+
+local:
+  certdir: "/tmp/target"
+
+vault:
+  api:
+    addr: 127.0.0.1
+    port: 8200
+  cluster:
+    addr: 172.0.0.1
+    port: 8201
+  domain: your.domain.name # replace the next three with your FQDN
+  intermediate_name: your-domain-name # FQDN with - instead of .
+  resource_name: your_domain_name # FQDN with _ instead of .
+  license: <your vault enterprise license>.hclic
+  config: vault.hcl
+  unseal:
+    key_count: 5
+    threshold: 3
+  dir:
+    root_token: /root/.vault
+    unseal_key: /root/.vault
+  ssl:
+    csr: /etc/vault.d/vault.csr
+    key: /etc/vault.d/vault-key.pem
+    cert: /etc/vault.d/vault-cert.pem
+
+...

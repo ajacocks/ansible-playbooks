@@ -5,41 +5,23 @@
   tags: vault
 
 # the following vars are needed for this playbook to work
-#  vars:
-#    sub:
-#      uid: <red hat subscription uid>
-#      pass: <red hat subscription password>
-
-#    terraform:
-#      license: <terraform enterprise license key>
-
-#    ca:
-#      privatekey_path: /etc/pki/tls/private/ca-certificate.key
-#      certificate_path: /etc/pki/tls/certs/ca-certificate.pem
-#      csr_path: /etc/pki/tls/certs/ca-csr.pem
-
-#    epel_gpg_key: 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9'
-#    epel_package: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm'
-
-#    vault:
-#      api:
-#        addr: 127.0.0.1
-#        port: 8200
-#      cluster:
-#        addr: 172.0.0.1
-#        port: 8201
-#      license: <vault enterprise license key>
-#      config: vault.hcl
-#      unseal:
-#        key_count: 5
-#        threshold: 3
-#      dir:
-#        root_token: /root/.vault
-#        unseal_key: /root/.vault
-#      ssl:
-#        csr: /etc/vault.d/vault.csr
-#        key: /etc/vault.d/vault-key.pem
-#        cert: /etc/vault.d/vault-cert.pem
+#
+# in group_vars.yml, you need to:
+#   - rename all-example.yml to all.yml
+#   - replace the following variables' content in group_vars/all.yml:
+#     - sub.uid
+#     - sub.gid
+#     - terraform.license
+#     - aap.installer    # if you want to use a newer version
+#     - aap.admin_pass
+#     - aap.admin_pass
+#     - vault.domain
+#     - vault.intermediate_name
+#     - vailt.resource_name
+#     - vault.license
+#   - rename inventory.example to inventory
+#     - replace hostnames with your hosts' names
+# you will need NFR or actual HashiCorp Vault and Terraform license keys
 
   roles:
     - name: vault_provision
