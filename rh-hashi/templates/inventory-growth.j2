@@ -92,7 +92,7 @@ eda_pg_password={{ aap.admin_pass }}
 
 # SSL Certificate Configuration
 
-custom_ca_cert={{ aap.certdir }}/root_2025-ca.crt
+custom_ca_cert={{ aap.certdir }}/intermediate.cert.pem
 
 # Platform gateway
 gateway_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt

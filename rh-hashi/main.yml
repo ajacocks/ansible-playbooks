@@ -295,7 +295,7 @@
     - name: Wait for automation controller to be running
       ansible.builtin.uri: # use the first host from the list if no hostname is defined
         # url: https://{{ controller_hostname }}:{{ __aap_setup_inst_controller_port }}/
-        url: https://localhost:443/
+        url: https://aap.{{ vault.domain }}:443/
         method: GET
         user: admin
         password: "{{ aap.admin_pass }}"
