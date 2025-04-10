@@ -1,6 +1,7 @@
 ---
 
 collections:
+- ansible.controller
 - community.hashi_vault
 
 ...
