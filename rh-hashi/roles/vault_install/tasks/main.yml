@@ -3,23 +3,33 @@
 - name: Install vault enterprise
   become: true
   block:
+    - name: Check existence of license file
+      ansible.builtin.stat:
+        path: "{{ vault_install_vault_license_file }}"
+      register: r_license_file
+
+    - name: Fail if license file does not exist
+      ansible.builtin.assert:
+        that:
+          - r_license_file.stat.exists
+        fail_msg: "The Vault license file {{ vault_install_vault_license_file }} must exist"
 
     - name: Add hashicorp release yum repo
       ansible.builtin.yum_repository:
         name: hashicorp
         description: Hashicorp Stable - $basearch
-        baseurl: https://rpm.releases.hashicorp.com/RHEL/$releasever/$basearch/stable
+        baseurl: "{{ vault_install_hashi_repo_url }}"
         gpgcheck: true
-        gpgkey: https://rpm.releases.hashicorp.com/gpg
+        gpgkey: "{{ vault_install_hashi_gpg_key_url }}"
 
     - name: Install vault package
       ansible.builtin.package:
-        name: vault-enterprise
+        name: "{{ vault_install_vault_package_name }}"
         state: present
 
     - name: Install vault enterprise license to /etc/vault.d
       ansible.builtin.copy:
-        src: "{{ vault.license }}"
+        src: "{{ vault_install_vault_license_file }}"
         dest: /etc/vault.d/vault.hclic
         owner: vault
         group: vault
@@ -27,7 +37,7 @@
 
     - name: Install vault enterprise configuration
       ansible.builtin.template:
-        src: "{{ vault.config }}.j2"
+        src: vault.hcl.j2
         dest: /etc/vault.d/vault.hcl
         owner: vault
         group: vault
@@ -35,48 +45,46 @@
 
     - name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
       community.crypto.openssl_privatekey:
-        path: "{{ vault.ssl.key }}"
+        path: "{{ vault_install_vault_key }}"
         owner: vault
         group: vault
         mode: '0640'
 
-    - name: Check whether certificate exists
+    - name: Check whether CA certificate exists
       ansible.builtin.stat:
-        path: "{{ ca.certificate_path }}"
+        path: "{{ vault_install_vault_ca_cert }}"
       register: certificate_exists
 
-    - name: Read existing certificate if exists
+    - name: Read existing CA certificate if exists
+      # TODO what if it doesn't?  should the vault_openssl_ca role move here?
       ansible.builtin.slurp:
-        src: "{{ ca.certificate_path }}"
+        src: "{{ vault_install_vault_ca_cert }}"
       when: certificate_exists.stat.exists
       register: certificate
 
     - name: Generate a new certificate signing request for vault
-      community.crypto.openssl_csr:
-        path: "{{ vault.ssl.csr }}"
-        privatekey_path: "{{ vault.ssl.key }}"
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ vault_install_vault_key }}"
         common_name: "{{ inventory_hostname }}"
-        organization_name: "Red Hat"
-        organizational_unit_name: "NA"
-        state_or_province_name: "NC"
-        locality_name: "Raleigh"
+        organization_name: "{{ vault_install_cert_org }}"
+        organizational_unit_name: "{{ vault_install_cert_ou }}"
+        state_or_province_name: "{{ vault_install_cert_state }}"
+        locality_name: "{{ vault_install_cert_locality }}"
         subject_alt_name:
           - "DNS:localhost"
           - "DNS:{{ ansible_fqdn }}"
           - "IP:127.0.0.1"
           - "IP:{{ ansible_default_ipv4.address }}"
-        owner: vault
-        group: vault
-        mode: '0640'
+      register: r_vault_csr
 
     - name: Sign ssl certificate and key for vault
       community.crypto.x509_certificate:
-        path: "{{ vault.ssl.cert }}"
-        privatekey_path: "{{ vault.ssl.key }}"
-        csr_path: "{{ vault.ssl.csr }}"
+        path: "{{ vault_install_vault_certificate }}"
+        privatekey_path: "{{ vault_install_vault_key }}"
+        csr_content: "{{ r_vault_csr.csr }}"
         provider: ownca
-        ownca_path: "{{ ca.certificate_path }}"
-        ownca_privatekey_path: "{{ ca.privatekey_path }}"
+        ownca_path: "{{ vault_install_vault_ca_cert }}"
+        ownca_privatekey_path: "{{ vault_install_vault_ca_key }}"
         ownca_not_after: +365d  # valid for one year
         ownca_not_before: "-1d"  # valid since yesterday
         owner: vault
