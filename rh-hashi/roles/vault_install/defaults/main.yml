@@ -14,7 +14,7 @@ vault_install_cert_ou: Demo
 vault_install_cert_state: North Carolina
 vault_install_cert_locality: Raleigh
 
-vault_install_api_addr: 127.0.0.1
+vault_install_api_addr: 0.0.0.0
 vault_install_api_port: 8200
 vault_install_cluster_addr: 127.0.0.1
 vault_install_cluster_port: 8201
