@@ -1,0 +1,96 @@
+---
+- name: Provision aap for AAP-HashiCorp integrated demo
+  hosts: "{{ groups['aap_hashi_aap'][0] }}"
+  tags: aap
+
+  roles:
+    - name: aap_provision
+    - name: aap_install
+
+- name: Run installation for aap
+  hosts: "{{ groups['aap_hashi_aap'][0] }}"
+  tags: aap
+  remote_user: "{{ aap.user }}"
+
+  tasks:
+
+    - name: Run the AAP installer
+      tags: aap_install
+      block:
+
+        - name: Run the Ansible Automation Platform setup program
+          ansible.builtin.shell: "ansible-playbook -i inventory ansible.containerized_installer.install"
+          args:
+            chdir: "{{ aap.dir }}/{{ installer_extracted }}"
+          async: 10000
+          poll: 20
+          changed_when: false
+
+        - name: Wait for automation controller to be running
+          ansible.builtin.uri: # use the first host from the list if no hostname is defined
+            # url: https://{{ controller_hostname }}:{{ __aap_setup_inst_controller_port }}/
+            url: https://aap.{{ vault.domain }}:443/
+            method: GET
+            user: admin
+            password: "{{ aap.admin_pass }}"
+            force_basic_auth: true
+            status_code: 200
+            validate_certs: "{{ aap.validate_certs | default(omit) }}"
+          register: __aap_setup_inst_result
+          until: __aap_setup_inst_result.status == 200
+          retries: 90
+          delay: 10
+
+    - name: Upload the subscription manifest to the aap host
+      ansible.builtin.copy:
+        src: "{{ aap.license }}"
+        dest: "{{ aap.dir }}/aap-license.zip"
+        mode: '0644'
+
+    - name: Use the subscriptions module to fetch subscriptions from Red Hat or Red Hat Satellite
+      ansible.controller.subscriptions:
+        controller_host: "aap.{{ vault.domain }}"
+        controller_username: admin
+        controller_password: "{{ aap.admin_pass }}"
+        username: "{{ sub.uid }}"
+        password: "{{ sub.pass }}"
+
+    - name: Install the subscription with a pool ID
+      ansible.controller.license:
+        controller_host: "aap.{{ vault.domain }}"
+        controller_username: admin
+        controller_password: "{{ aap.admin_pass }}"
+        pool_id: "{{ sub.pool }}"
+
+    - fail:
+
+    - name: Wait for automation hub to be running
+      ansible.builtin.uri: # use the first host from the list if no hostname is defined
+        url: https://{{ ah_hostname }}:{{ __aap_setup_inst_hub_port }}/api/galaxy/
+        method: GET
+        user: admin
+        password: "{{ aap_setup_prep_inv_secrets.all.hub_admin_password | default(aap_setup_prep_inv_vars.all.hub_admin_password) }}"
+        force_basic_auth: true
+        status_code: 200
+        validate_certs: "{{ ah_validate_certs | default(omit) }}"
+      register: __aap_setup_inst_result_ah
+      until: __aap_setup_inst_result_ah.status == 200
+      retries: 90
+      delay: 10
+      when: "'automationhub' in aap_setup_prep_inv_nodes"
+
+    - name: Wait for EDA controller to be running
+      ansible.builtin.uri: # use the first host from the list if no hostname is defined
+        url: https://{{ eda_hostname }}:{{ __aap_setup_inst_eda_port }}/
+        method: GET
+        user: admin
+        password: "{{ aap_setup_prep_inv_secrets.all.eda_admin_password | default(aap_setup_prep_inv_vars.all.eda_admin_password) }}"
+        validate_certs: "{{ eda_validate_certs | default('false') }}"
+        force_basic_auth: true
+      register: __aap_setup_inst_result_eda
+      until: __aap_setup_inst_result_eda.status == 200
+      retries: 90
+      delay: 10
+      when: "'automationeda' in aap_setup_prep_inv_nodes"
+
+...

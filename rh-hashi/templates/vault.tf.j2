@@ -1,6 +1,7 @@
 provider "vault" {
-  address = "https://{{ vault.api.addr }}:{{ vault.api.port }}"
+  address = "{{ _vault_url }}"
   token = "{{ root_token_result.stdout }}"
+  skip_tls_verify = true
 }
 
 # create root CA
@@ -56,8 +57,8 @@ resource "vault_pki_secret_backend_role" "role" {
 # configure CA and CRL URLs
 resource "vault_pki_secret_backend_config_urls" "config-urls" {
   backend                 = vault_mount.pki.path
-  issuing_certificates    = ["https://{{ vault.api.addr }}:{{ vault.api.port }}/v1/pki/ca"]
-  crl_distribution_points = ["https://{{ vault.api.addr }}:{{ vault.api.port }}/v1/pki/crl"]
+  issuing_certificates    = ["{{ _vault_url }}/v1/pki/ca"]
+  crl_distribution_points = ["{{ _vault_url }}/v1/pki/crl"]
 }
 
 # enable and tune the PKI secrets engine
