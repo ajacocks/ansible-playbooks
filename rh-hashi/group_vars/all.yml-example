@@ -1,26 +1,16 @@
 ---
+# Override these role variables to attach a RHEL subscription to the Vault RHEL server
+vault_provision_redhat_subscription: true
+vault_provision_redhat_username: user@example.com
+vault_provision_redhat_password: CHANGEME
 
-sub:
-  uid: <red hat subscription userID>
-  pass: <red hat subscription password>
+# Override this role variable to point to your local Vault license file
+vault_install_vault_license_file: /tmp/vault.hclic
 
 terraform:
   license: <terraform license key>.hclic
   dir: "{{ ansible_user_dir }}/terraform"
   certdir: "{{ ansible_user_dir }}/terraform/certs"
-
-ca:
-  privatekey_path: /etc/pki/tls/private/ca-certificate.key
-  certificate_path: /etc/pki/tls/certs/ca-certificate.pem
-  csr_path: /etc/pki/tls/certs/ca-csr.pem
-  cn: Red Hat HashiCorp CA
-  o: Red Hat
-  ou: NA
-  st: NC
-  l: Raleigh
-
-epel_gpg_key: 'https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9'
-epel_package: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm'
 
 aap:
   dir: "/home/aap/aap"
@@ -37,26 +27,14 @@ local:
   certdir: "/tmp/target"
 
 vault:
-  api:
-    addr: 127.0.0.1
-    port: 8200
-  cluster:
-    addr: 172.0.0.1
-    port: 8201
   domain: your.domain.name # replace the next three with your FQDN
   intermediate_name: your-domain-name # FQDN with - instead of .
   resource_name: your_domain_name # FQDN with _ instead of .
-  license: <your vault enterprise license>.hclic
-  config: vault.hcl
   unseal:
     key_count: 5
     threshold: 3
   dir:
     root_token: /root/.vault
     unseal_key: /root/.vault
-  ssl:
-    csr: /etc/vault.d/vault.csr
-    key: /etc/vault.d/vault-key.pem
-    cert: /etc/vault.d/vault-cert.pem
 
 ...

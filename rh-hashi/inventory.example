@@ -1,14 +1,2 @@
-[aap_hashi]
-[aap_hashi:children]
-aap_hashi_vault
-aap_hashi_gitlab
-aap_hashi_aap
-
 [aap_hashi_vault]
-vault.your.domain.name
-
-[aap_hashi_gitlab]
-gitlab.your.domain.name
-
-[aap_hashi_aap]
-aap.your.domain.name
+vault.mydomain.example.com
