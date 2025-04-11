@@ -6,17 +6,16 @@
 
     - name: Create private key
       community.crypto.openssl_privatekey:
-        path: "{{ ca.privatekey_path }}"
+        path: "{{ vault_openssl_ca_ca_key }}"
 
     - name: Create certificate signing request (CSR) for CA certificate
-      community.crypto.openssl_csr:
-        path: "{{ ca.csr_path }}"
-        privatekey_path: "{{ ca.privatekey_path }}"
-        common_name: "{{ ca.cn }}"
-        organization_name: "{{ ca.o }}"
-        organizational_unit_name: "{{ ca.ou }}"
-        state_or_province_name: "{{ ca.st }}"
-        locality_name: "{{ ca.l }}"
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ vault_openssl_ca_ca_key }}"
+        common_name: "{{ vault_openssl_ca_ca_cn }}"
+        organization_name: "{{ vault_openssl_ca_ca_org }}"
+        organizational_unit_name: "{{ vault_openssl_ca_ca_ou }}"
+        state_or_province_name: "{{ vault_openssl_ca_ca_state }}"
+        locality_name: "{{ vault_openssl_ca_ca_locality }}"
         use_common_name_for_san: false  # since we do not specify SANs, don't use CN as a SAN
         basic_constraints:
           - 'CA:TRUE'
@@ -24,18 +23,19 @@
         key_usage:
           - keyCertSign
         key_usage_critical: true
+      register: r_ca_csr
 
     - name: Create self-signed CA certificate from CSR
       community.crypto.x509_certificate:
-        path: "{{ ca.certificate_path }}"
-        csr_path: "{{ ca.csr_path }}"
-        privatekey_path: "{{ ca.privatekey_path }}"
+        path: "{{ vault_openssl_ca_ca_cert }}"
+        csr_content: "{{ r_ca_csr.csr }}"
+        privatekey_path: "{{ vault_openssl_ca_ca_key }}"
         provider: selfsigned
 
     - name: Copy new ssl cetificate to system trusted anchors
       ansible.builtin.copy:
-        src: "{{ ca.certificate_path }}"
-        dest: /etc/pki/ca-trust/source/anchors/vault-cert.pem
+        src: "{{ vault_openssl_ca_ca_cert }}"
+        dest: /etc/pki/ca-trust/source/anchors/{{ vault_openssl_ca_ca_cert | basename }}
         remote_src: true
         owner: root
         group: root
