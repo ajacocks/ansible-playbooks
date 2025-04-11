@@ -1,2 +1,4 @@
 files/**
 **/collections/ansible_collections/
+inventory
+group_vars/all.yml
