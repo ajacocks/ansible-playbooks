@@ -31,6 +31,14 @@
     - name: Configure vault
       block:
 
+        - name: Set Vault FQDN fact
+          ansible.builtin.set_fact:
+            _vault_fqdn: "{{ vault_fqdn | default(inventory_hostname) }}"
+
+        - name: Set Vault URL fact
+          ansible.builtin.set_fact:
+            _vault_url: https://{{ _vault_fqdn }}:{{ vault_install_api_port | default('8200') }}
+
         - name: Create storage directories
           become: true
           ansible.builtin.file:
@@ -44,6 +52,9 @@
         - name: Check to see if vault is already initialized
           ansible.builtin.command:
             cmd: vault status -format=json
+          environment:
+            VAULT_ADDR: "{{ _vault_url }}"
+            VAULT_SKIP_VERIFY: "{{ vault_validate_certs | default(false) | ternary('false', 'true') }}"
           register: vault_status_result
           ignore_errors: true
           changed_when: false
@@ -57,20 +68,12 @@
             var: vault_status_parsed
           when: debug | default(false)
 
-        - name: Set Vault FQDN fact
-          ansible.builtin.set_fact:
-            _vault_fqdn: "{{ vault_fqdn | default(inventory_hostname) }}"
-
-        - name: Set Vault URL fact
-          ansible.builtin.set_fact:
-            _vault_url: https://{{ _vault_fqdn }}:{{ vault_install_api_port | default('8200') }}
-
         - name: Initialize Vault operator
           ansible.builtin.command:
             cmd: "vault operator init -key-shares {{ vault.unseal.key_count }} -key-threshold {{ vault.unseal.threshold }} -format json"
           environment:
             VAULT_ADDR: "{{ _vault_url }}"
-            VAULT_SKIP_VERIFY: "true"
+            VAULT_SKIP_VERIFY: "{{ vault_validate_certs | default(false) | ternary('false', 'true') }}"
           register: vault_init_results
           when: not vault_status_parsed.initialized
 
@@ -137,7 +140,7 @@
             status_code: 200
             body:
               key: "{{ item }}"
-            validate_certs: false
+            validate_certs: "{{ vault_validate_certs | default(false) }}"
           loop: "{{ unseal_keys_result.stdout_lines }}"
           register: unseal_api_result
 
@@ -146,7 +149,7 @@
             url: "{{ _vault_url }}"
             auth_method: token
             token: "{{ root_token }}"
-            validate_certs: false
+            validate_certs: "{{ vault_validate_certs | default(false) }}"
           register: login_data
 
         - name: Debug login data
