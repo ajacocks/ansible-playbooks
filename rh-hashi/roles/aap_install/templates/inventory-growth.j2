@@ -91,41 +91,41 @@ eda_pg_password={{ aap_install_common_password }}
 
 # SSL Certificate Configuration
 
-custom_ca_cert={{ aap_install_custom_ca_cert }}
+custom_ca_cert={{ aap_install_cert_dir }}/{{ aap_install_custom_ca_cert }}
 
 # Platform gateway
-gateway_tls_cert={{ aap_install_common_cert }}
-gateway_tls_key={{ aap_install_common_key }}
-gateway_pg_tls_cert={{ aap_install_common_cert }}
-gateway_pg_tls_key={{ aap_install_common_key }}
-gateway_redis_tls_cert={{ aap_install_common_cert }}
-gateway_redis_tls_key={{ aap_install_common_key }}
+gateway_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+gateway_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
+gateway_pg_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+gateway_pg_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
+gateway_redis_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+gateway_redis_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
 
 # Automation controller
-controller_tls_cert={{ aap_install_common_cert }}
-controller_tls_key={{ aap_install_common_key }}
-controller_pg_tls_cert={{ aap_install_common_cert }}
-controller_pg_tls_key={{ aap_install_common_key }}
+controller_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+controller_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
+controller_pg_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+controller_pg_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
 
 # Automation hub
-hub_tls_cert={{ aap_install_common_cert }}
-hub_tls_key={{ aap_install_common_key }}
-hub_pg_tls_cert={{ aap_install_common_cert }}
-hub_pg_tls_key={{ aap_install_common_key }}
+hub_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+hub_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
+hub_pg_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+hub_pg_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
 
 # Event-Driven Ansible
-eda_tls_cert={{ aap_install_common_cert }}
-eda_tls_key={{ aap_install_common_key }}
-eda_pg_tls_cert={{ aap_install_common_cert }}
-eda_pg_tls_key={{ aap_install_common_key }}
-eda_redis_tls_cert={{ aap_install_common_cert }}
-eda_redis_tls_key={{ aap_install_common_key }}
+eda_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+eda_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
+eda_pg_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+eda_pg_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
+eda_redis_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+eda_redis_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
 
 # PostgreSQL
-postgresql_tls_cert={{ aap_install_common_cert }}
-postgresql_tls_key={{ aap_install_common_key }}
+postgresql_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+postgresql_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
 
 # Receptor
-# receptor_tls_cert={{ aap_install_common_cert }}
-# receptor_tls_key={{ aap_install_common_key }}
+# receptor_tls_cert={{ aap_install_cert_dir }}/{{ aap_install_common_cert }}
+# receptor_tls_key={{ aap_install_cert_dir }}/{{ aap_install_common_key }}
 {% endif %}

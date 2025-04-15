@@ -11,8 +11,17 @@
 #vault_install_tls_cert: /path/to/cert.pem
 #vault_install_tls_key: /path/to/key.pem
 
+# Override these role variables to attach a RHEL subscription to the AAP RHEL server
+#aap_provision_redhat_subscription: false
+#aap_provision_redhat_username: user@example.com
+#aap_provision_redhat_password: CHANGEME
+
+# Change this to change the default password for AAP
+aap_install_common_password: CHANGEME
+
 # Override these role variables to install user-provided CA certs to the system trust store
-# aap_install_provide_certs: false
+#aap_install_provide_certs: false
+#aap_install_custom_ca_cert: "custom-ca.crt"
 
 terraform:
   license: <terraform license key>.hclic

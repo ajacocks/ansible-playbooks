@@ -13,9 +13,8 @@ aap_install_installer_dir: "{{ aap_install_aap_user_dir }}/{{ aap_install_instal
 
 # installation inventory variable overrides
 aap_install_common_password: CHANGEME
-aap_install_provide_certs: false
-aap_install_common_cert: "{{ aap_install_cert_dir }}/aap-common.crt"
-aap_install_common_key: "{{ aap_install_cert_dir }}/aap-common.key"
-aap_install_custom_ca_cert: "{{ aap_install_cert_dir }}/custom-ca.crt"
+aap_install_common_cert: "{{ inventory_hostname }}-server.crt"
+aap_install_common_key: "{{ inventory_hostname }}-server.key"
+aap_install_custom_ca_cert: "custom-ca.crt"
 
 ...
