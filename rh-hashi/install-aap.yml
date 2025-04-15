@@ -28,8 +28,7 @@
 
         - name: Wait for automation controller to be running
           ansible.builtin.uri: # use the first host from the list if no hostname is defined
-            # url: https://{{ controller_hostname }}:{{ __aap_setup_inst_controller_port }}/
-            url: https://aap.{{ vault.domain }}:443/
+            url: https://{{ inventory_hostname }}:443/
             method: GET
             user: admin
             password: "{{ aap.admin_pass }}"
@@ -41,26 +40,36 @@
           retries: 90
           delay: 10
 
-    - name: Upload the subscription manifest to the aap host
-      ansible.builtin.copy:
-        src: "{{ aap.license }}"
-        dest: "{{ aap.dir }}/aap-license.zip"
-        mode: '0644'
+    - name: Add a subscription to the AAP host
+      when: aap_provision_redhat_subscription | default(false)
+      block:
 
-    - name: Use the subscriptions module to fetch subscriptions from Red Hat or Red Hat Satellite
-      ansible.controller.subscriptions:
-        controller_host: "aap.{{ vault.domain }}"
-        controller_username: admin
-        controller_password: "{{ aap.admin_pass }}"
-        username: "{{ sub.uid }}"
-        password: "{{ sub.pass }}"
+        - name: Upload the subscription manifest to the aap host
+          ansible.builtin.copy:
+            src: "{{ aap.license }}"
+            dest: "{{ aap.dir }}/aap-license.zip"
+            mode: '0644'
+          when: aap_provision_redhat_manifest | default(false)
 
-    - name: Install the subscription with a pool ID
-      ansible.controller.license:
-        controller_host: "aap.{{ vault.domain }}"
-        controller_username: admin
-        controller_password: "{{ aap.admin_pass }}"
-        pool_id: "{{ sub.pool }}"
+        - name: Use online subscription attachement
+          when: not aap_provision_redhat_manifest | default(false)
+          block:
+
+            - name: Use the subscriptions module to fetch subscriptions from Red Hat or Red Hat Satellite
+              ansible.controller.subscriptions:
+                controller_host: "{{ inventory_hostname }}"
+                controller_username: admin
+                controller_password: "{{ aap_install_common_password }}"
+                username: "{{ aap_provision_redhat_username }}"
+                password: "{{ aap_provision_redhat_password }}"
+              
+
+            - name: Install the subscription with a pool ID
+              ansible.controller.license:
+                controller_host: "{{ inventory_hostname }}"
+                controller_username: admin
+                controller_password: "{{ aap_install_common_password }}"
+                pool_id: "{{ aap_provision_redhat_pool }}"
 
     - fail:
 

@@ -1,4 +1,6 @@
 [aap_hashi]
+[aap_hashi:vars]
+install_domain=your.domain.name
 [aap_hashi:children]
 aap_hashi_vault
 aap_hashi_gitlab

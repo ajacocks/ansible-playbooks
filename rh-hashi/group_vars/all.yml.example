@@ -13,6 +13,7 @@
 
 # Override these role variables to attach a RHEL subscription to the AAP RHEL server
 #aap_provision_redhat_subscription: false
+#aap_provision_redhat_subscription_manifest: false
 #aap_provision_redhat_username: user@example.com
 #aap_provision_redhat_password: CHANGEME
 
