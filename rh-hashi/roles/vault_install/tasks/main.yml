@@ -4,14 +4,6 @@
   become: true
   block:
 
-    - name: Install vault enterprise license to /etc/vault.d
-      ansible.builtin.copy:
-        src: "{{ vault_install_vault_license_file }}"
-        dest: /etc/vault.d/vault.hclic
-        owner: vault
-        group: vault
-        mode: '0640'
-
     - name: Add hashicorp release yum repo
       ansible.builtin.yum_repository:
         name: hashicorp
