@@ -2,66 +2,68 @@
 
 - name: Create dir and copy over certs
   become: true
+  when: aap_install_provide_certs
   block:
 
     - name: Create storage directory for certificates
       ansible.builtin.file:
-        path: "{{ aap.certdir }}"
+        path: "{{ aap_install_cert_dir }}"
         mode: '0755'
-        owner: "{{ aap.user }}"
-        group: "{{ aap.group }}"
+        owner: "{{ aap_install_aap_user }}"
+        group: "{{ aap_install_aap_group }}"
         state: directory
 
     - name: Copy certs for this host
       ansible.builtin.copy:
-        src: "{{ local.certdir }}/"
-        dest: "{{ aap.certdir }}"
-        owner: "{{ aap.user }}"
-        group: "{{ aap.group }}"
+        src: "{{ aap_install_local_cert_dir }}/"
+        dest: "{{ aap_install_cert_dir }}"
+        owner: "{{ aap_install_aap_user }}"
+        group: "{{ aap_install_aap_group }}"
         mode: '0644'
 
-    - name: Copy ca cetificates to system trusted anchors
-      ansible.builtin.copy:
-        src: "{{ aap.certdir }}/{{ item }}"
-        dest: /etc/pki/ca-trust/source/anchors/root_2025-ca.pem
-        remote_src: true
-        owner: root
-        group: root
-        mode: '0644'
-      loop:
-        - root_2025-ca.crt
-        - intermediate.cert.pem
-      notify: Update system ssl trust db
+    # TODO this should not be necessary for the containerized installer
+    #- name: Copy ca cetificates to system trusted anchors
+    #  ansible.builtin.copy:
+    #    src: "{{ aap_install_cert_dir }}/{{ item }}"
+    #    dest: /etc/pki/ca-trust/source/anchors/root_2025-ca.pem
+    #    remote_src: true
+    #    owner: root
+    #    group: root
+    #    mode: '0644'
+    #  loop:
+    #    - root_2025-ca.crt
+    #    - intermediate.cert.pem
+    #  notify: Update system ssl trust db
 
-    - name: Flush handlers
-      ansible.builtin.meta: flush_handlers
+    #- name: Flush handlers
+    #  ansible.builtin.meta: flush_handlers
 
 - name: Install aap
   become: true
-  become_user: "{{ aap.user }}"
+  become_user: "{{ aap_install_aap_user }}"
   block:
 
     - name: Install aap containerized setup bundle to working dir
       ansible.builtin.copy:
-        src: "{{ aap.installer }}"
-        dest: "{{ aap.dir }}"
-        owner: "{{ aap.user }}"
-        group: "{{ aap.group }}"
+        src: "{{ aap_install_installer_bundle }}"
+        dest: "{{ aap_install_aap_user_dir }}"
+        owner: "{{ aap_install_aap_user }}"
+        group: "{{ aap_install_aap_group }}"
         mode: '0640'
 
     - name: Extract the containerized setup bundle
       ansible.builtin.unarchive:
-        src: "{{ aap.dir }}/{{ aap.installer }}"
-        dest: "{{ aap.dir }}"
+        src: "{{ aap_install_aap_user_dir }}/{{ aap_install_installer_bundle | basename }}"
+        dest: "{{ aap_install_aap_user_dir }}"
         remote_src: true
-        creates: "{{ aap.dir }}/{{ installer_extracted }}"
+        creates: "{{ aap_install_installer_dir }}"
 
     - name: Copy the templatized inventory to the created directory
       ansible.builtin.template:
         src: inventory-growth.j2
-        dest: "{{ aap.dir }}/{{ installer_extracted }}/inventory"
-        owner: "{{ aap.user }}"
-        group: "{{ aap.group }}"
+        dest: "{{ aap_install_installer_dir }}/inventory"
+        owner: "{{ aap_install_aap_user }}"
+        group: "{{ aap_install_aap_group }}"
         mode: '0644'
 
 #    - name: Setup directory to allow systemctl to be run via sudo

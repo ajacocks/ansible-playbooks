@@ -7,9 +7,10 @@
     - name: Register subscription for host with Red Hat
       community.general.redhat_subscription:
         state: present
-        username: "{{ sub.uid }}"
-        password: "{{ sub.pass }}"
+        username: "{{ aap_provision_redhat_username }}"
+        password: "{{ aap_provision_redhat_password }}"
         auto_attach: true
+      when: aap_provision_redhat_subscription
 
     - name: Update all packages on system to current
       ansible.builtin.package:
@@ -19,61 +20,37 @@
           - rhel-9-for-x86_64-appstream-rpms
         name: '*'
         state: latest
-
-    - name: Download repo keys and packages
-      ansible.builtin.get_url:
-        url: "{{ item }}"
-        dest: /tmp
-        mode: '0644'
-      loop:
-        - "{{ epel_package }}"
-
-    - name: Install EPEL repo gpg key
-      ansible.builtin.rpm_key:
-        key: "{{ epel_gpg_key }}"
-        state: present
-
-    - name: Install EPEL repo package
-      ansible.builtin.dnf:
-        name: "/tmp/{{ epel_package | regex_replace('.*/', '') }}"
-        state: present
+      when: aap_provision_rhel_update
 
     - name: Install package dependencies
       ansible.builtin.dnf:
-        name:
-          - ansible-core
-          - git-core
-          - rsync
-          - vim
-          - wget
-          - yum-utils
+        name: "{{ aap_provision_rhel_packages }}"
         state: present
 
-    - name: Create aap.group group
+    - name: Create local AAP service account group
       ansible.builtin.group:
-        name: "{{ aap.group }}"
+        name: "{{ aap_provision_aap_group }}"
         state: present
 
-    - name: Create user and group for aap to run under
+    - name: Create local AAP service account user
       ansible.builtin.user:
-        name: "{{ aap.user }}"
-        group: "{{ aap.group }}"
+        name: "{{ aap_provision_aap_user }}"
+        group: "{{ aap_provision_aap_group }}"
         system: true
 
-    - name: Add aap user to group wheel
+    - name: Add local AAP service account user to group wheel
       ansible.builtin.user:
-        name: "{{ aap.user }}"
+        name: "{{ aap_provision_aap_user }}"
         groups: wheel
         append: true
 
-    - name: Copy .ssh authorized keys from login user to ~aap
+    - name: Copy .ssh authorized keys from login user
       ansible.builtin.copy:
         src: /home/{{ ansible_user_id }}/.ssh/authorized_keys
-        dest: "~{{ aap.user }}/.ssh/"
+        dest: "~{{ aap_provision_aap_user }}/.ssh/"
         remote_src: true
-        owner: "{{ aap.user }}"
-        group: "{{ aap.group }}"
+        owner: "{{ aap_provision_aap_user }}"
+        group: "{{ aap_provision_aap_group }}"
         mode: '0644'
-
 
 ...
