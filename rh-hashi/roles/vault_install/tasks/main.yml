@@ -3,16 +3,14 @@
 - name: Install vault enterprise
   become: true
   block:
-    - name: Check existence of license file
-      ansible.builtin.stat:
-        path: "{{ vault_install_vault_license_file }}"
-      register: r_license_file
 
-    - name: Fail if license file does not exist
-      ansible.builtin.assert:
-        that:
-          - r_license_file.stat.exists
-        fail_msg: "The Vault license file {{ vault_install_vault_license_file }} must exist"
+    - name: Install vault enterprise license to /etc/vault.d
+      ansible.builtin.copy:
+        src: "{{ vault_install_vault_license_file }}"
+        dest: /etc/vault.d/vault.hclic
+        owner: vault
+        group: vault
+        mode: '0640'
 
     - name: Add hashicorp release yum repo
       ansible.builtin.yum_repository:

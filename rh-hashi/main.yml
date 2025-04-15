@@ -293,12 +293,6 @@
           retries: 90
           delay: 10
 
-    - name: Upload the subscription manifest to the aap host
-      ansible.builtin.copy:
-        src: "{{ aap.license }}"
-        dest: "{{ aap.dir }}/aap-license.zip"
-        mode: '0644'
-
     - name: Use the subscriptions module to fetch subscriptions from Red Hat or Red Hat Satellite
       ansible.controller.subscriptions:
         controller_host: "aap.{{ vault.domain }}"
