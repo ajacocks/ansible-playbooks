@@ -9,13 +9,13 @@ aap_install_local_cert_dir: /tmp/aap-certs
 aap_install_cert_dir: "{{ aap_install_aap_user_dir }}/certs"
 
 aap_install_installer_bundle: /tmp/ansible-automation-platform-containerized-setup-bundle-2.5-11.1-x86_64.tar.gz
-aap_install_installer_dir: "{{ aap_install_installer_bundle | basename | regex_replace('\\.tar.gz$', '') }}"
+aap_install_installer_dir: "{{ aap_install_aap_user_dir }}/{{ aap_install_installer_bundle | basename | regex_replace('\\.tar.gz$', '') }}"
 
 # installation inventory variable overrides
 aap_install_common_password: CHANGEME
 aap_install_provide_certs: false
-aap_install_common_cert: "{{ aap_install_cert_dir }}/certs/aap-common.crt"
-aap_install_common_key: "{{ aap_install_cert_dir }}/certs/aap-common.key"
-aap_install_custom_ca_cert: "{{ aap_install_cert_dir }}/certs/custom-ca.crt"
+aap_install_common_cert: "{{ aap_install_cert_dir }}/aap-common.crt"
+aap_install_common_key: "{{ aap_install_cert_dir }}/aap-common.key"
+aap_install_custom_ca_cert: "{{ aap_install_cert_dir }}/custom-ca.crt"
 
 ...

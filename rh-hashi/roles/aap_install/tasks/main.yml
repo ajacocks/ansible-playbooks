@@ -56,12 +56,12 @@
         src: "{{ aap_install_aap_user_dir }}/{{ aap_install_installer_bundle | basename }}"
         dest: "{{ aap_install_aap_user_dir }}"
         remote_src: true
-        creates: "{{ aap_install_aap_user_dir }}/{{ aap_install_installer_dir }}"
+        creates: "{{ aap_install_installer_dir }}"
 
     - name: Copy the templatized inventory to the created directory
       ansible.builtin.template:
         src: inventory-growth.j2
-        dest: "{{ aap_install_aap_user_dir }}/{{ aap_install_installer_dir }}/inventory"
+        dest: "{{ aap_install_installer_dir }}/inventory"
         owner: "{{ aap_install_aap_user }}"
         group: "{{ aap_install_aap_group }}"
         mode: '0644'
