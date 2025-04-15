@@ -213,7 +213,7 @@
         - name: Write chain certificates to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + vault.resource_name + '_ca_chain']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.resource_name }}-ca_chain.crt"
+            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.domain }}-ca_chain.crt"
             mode: '0644'
           loop:
             - aap
@@ -223,7 +223,7 @@
         - name: Write server certificates to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + vault.resource_name + '_cert']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.resource_name }}-server.crt"
+            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.domain }}-server.crt"
             mode: '0644'
           loop:
             - aap
@@ -233,7 +233,7 @@
         - name: Write server keys to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + vault.resource_name + '_private_key']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.resource_name }}-server.key"
+            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.domain }}-server.key"
             mode: '0644'
           loop:
             - aap
@@ -243,7 +243,7 @@
         - name: Write serial numbers to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + vault.resource_name + '_serial_number']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.resource_name }}-serial.txt"
+            dest: "{{ terraform.certdir }}/{{ item }}.{{ vault.domain }}-serial.txt"
             mode: '0644'
           loop:
             - aap
@@ -259,7 +259,7 @@
         - name: Copy certs back
           ansible.builtin.fetch:
             src: "{{ item.path }}"
-            dest: "{{ local.certdir }}/"
+            dest: "{{ local_certdir }}/"
             flat: true
           loop: "{{ cert_files.files }}"
 

@@ -11,6 +11,9 @@
 #vault_install_tls_cert: /path/to/cert.pem
 #vault_install_tls_key: /path/to/key.pem
 
+# Override these role variables to install user-provided CA certs to the system trust store
+# aap_install_provide_certs: false
+
 terraform:
   license: <terraform license key>.hclic
   dir: "{{ ansible_user_dir }}/terraform"

@@ -21,22 +21,21 @@
         group: "{{ aap_install_aap_group }}"
         mode: '0644'
 
-    # TODO this should not be necessary for the containerized installer
-    #- name: Copy ca cetificates to system trusted anchors
-    #  ansible.builtin.copy:
-    #    src: "{{ aap_install_cert_dir }}/{{ item }}"
-    #    dest: /etc/pki/ca-trust/source/anchors/root_2025-ca.pem
-    #    remote_src: true
-    #    owner: root
-    #    group: root
-    #    mode: '0644'
-    #  loop:
-    #    - root_2025-ca.crt
-    #    - intermediate.cert.pem
-    #  notify: Update system ssl trust db
+    - name: Copy ca cetificates to system trusted anchors
+      ansible.builtin.copy:
+        src: "{{ aap_install_cert_dir }}/{{ item }}"
+        dest: /etc/pki/ca-trust/source/anchors/root_2025-ca.pem
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - root_2025-ca.crt
+        - intermediate.cert.pem
+      notify: Update system ssl trust db
 
-    #- name: Flush handlers
-    #  ansible.builtin.meta: flush_handlers
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
 
 - name: Install aap
   become: true
