@@ -39,9 +39,7 @@
 # This section is for the AAP database
 # -----------------------------------------------------
 [database]
-{% for host in groups['aap_hashi_aap'] %}
-{{ host }}
-{% endfor %}
+{{ groups['aap_hashi_aap'][0] }}
 
 [all:vars]
 # Ansible
@@ -51,81 +49,83 @@ ansible_connection=local
 # https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-general-inventory-variables
 # -----------------------------------------------------
 postgresql_admin_username=postgres
-postgresql_admin_password={{ aap.admin_pass }}
+postgresql_admin_password={{ aap_install_common_password }}
 
 bundle_install=true
 # The bundle directory must include /bundle in the path
 # bundle_dir='{{ lookup("ansible.builtin.env", "PWD") }}/bundle'
-bundle_dir='{{ aap.dir }}/{{ installer_extracted }}/bundle'
+bundle_dir='{{ aap_install_installer_dir }}/bundle'
 
 redis_mode=standalone
 
 # AAP Gateway
 # https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-gateway-variables
 # -----------------------------------------------------
-gateway_admin_password={{ aap.admin_pass }}
+gateway_admin_password={{ aap_install_common_password }}
 gateway_pg_host={{ groups['aap_hashi_aap'][0] }}
-gateway_pg_password={{ aap.admin_pass }}
+gateway_pg_password={{ aap_install_common_password }}
 
 # AAP Controller
 # https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-controller-variables
 # -----------------------------------------------------
-controller_admin_password={{ aap.admin_pass }}
+controller_admin_password={{ aap_install_common_password }}
 controller_pg_host={{ groups['aap_hashi_aap'][0] }}
-controller_pg_password={{ aap.admin_pass }}
+controller_pg_password={{ aap_install_common_password }}
 controller_percent_memory_capacity=0.5
 
 # AAP Automation Hub
 # https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#ref-hub-variables
 # -----------------------------------------------------
-hub_admin_password={{ aap.admin_pass }}
+hub_admin_password={{ aap_install_common_password }}
 hub_pg_host={{ groups['aap_hashi_aap'][0] }}
-hub_pg_password={{ aap.admin_pass }}
+hub_pg_password={{ aap_install_common_password }}
 hub_seed_collections=false
 
 # AAP EDA Controller
 # https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.5/html/containerized_installation/appendix-inventory-files-vars#event-driven-ansible-controller
 # -----------------------------------------------------
-eda_admin_password={{ aap.admin_pass }}
+eda_admin_password={{ aap_install_common_password }}
 eda_pg_host={{ groups['aap_hashi_aap'][0] }}
-eda_pg_password={{ aap.admin_pass }}
+eda_pg_password={{ aap_install_common_password }}
+{% if aap_install_provide_certs %}
 
 # SSL Certificate Configuration
 
-custom_ca_cert={{ aap.certdir }}/intermediate.cert.pem
+custom_ca_cert={{ aap_install_custom_ca_cert }}
 
 # Platform gateway
-gateway_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-gateway_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
-gateway_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-gateway_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
-gateway_redis_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-gateway_redis_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+gateway_tls_cert={{ aap_install_common_cert }}
+gateway_tls_key={{ aap_install_common_key }}
+gateway_pg_tls_cert={{ aap_install_common_cert }}
+gateway_pg_tls_key={{ aap_install_common_key }}
+gateway_redis_tls_cert={{ aap_install_common_cert }}
+gateway_redis_tls_key={{ aap_install_common_key }}
 
 # Automation controller
-controller_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-controller_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
-controller_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-controller_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+controller_tls_cert={{ aap_install_common_cert }}
+controller_tls_key={{ aap_install_common_key }}
+controller_pg_tls_cert={{ aap_install_common_cert }}
+controller_pg_tls_key={{ aap_install_common_key }}
 
 # Automation hub
-hub_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-hub_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
-hub_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-hub_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+hub_tls_cert={{ aap_install_common_cert }}
+hub_tls_key={{ aap_install_common_key }}
+hub_pg_tls_cert={{ aap_install_common_cert }}
+hub_pg_tls_key={{ aap_install_common_key }}
 
 # Event-Driven Ansible
-eda_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-eda_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
-eda_pg_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-eda_pg_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
-eda_redis_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-eda_redis_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+eda_tls_cert={{ aap_install_common_cert }}
+eda_tls_key={{ aap_install_common_key }}
+eda_pg_tls_cert={{ aap_install_common_cert }}
+eda_pg_tls_key={{ aap_install_common_key }}
+eda_redis_tls_cert={{ aap_install_common_cert }}
+eda_redis_tls_key={{ aap_install_common_key }}
 
 # PostgreSQL
-postgresql_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-postgresql_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+postgresql_tls_cert={{ aap_install_common_cert }}
+postgresql_tls_key={{ aap_install_common_key }}
 
 # Receptor
-# receptor_tls_cert={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.crt
-# receptor_tls_key={{ aap.certdir }}/{{ inventory_hostname_short }}.{{ vault.resource_name }}-server.key
+# receptor_tls_cert={{ aap_install_common_cert }}
+# receptor_tls_key={{ aap_install_common_key }}
+{% endif %}
