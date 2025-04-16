@@ -71,35 +71,33 @@
                 controller_password: "{{ aap_install_common_password }}"
                 pool_id: "{{ aap_provision_redhat_pool }}"
 
-    - fail:
+    # - name: Wait for automation hub to be running
+    #   ansible.builtin.uri: # use the first host from the list if no hostname is defined
+    #     url: https://{{ ah_hostname }}:{{ __aap_setup_inst_hub_port }}/api/galaxy/
+    #     method: GET
+    #     user: admin
+    #     password: "{{ aap_setup_prep_inv_secrets.all.hub_admin_password | default(aap_setup_prep_inv_vars.all.hub_admin_password) }}"
+    #     force_basic_auth: true
+    #     status_code: 200
+    #     validate_certs: "{{ ah_validate_certs | default(omit) }}"
+    #   register: __aap_setup_inst_result_ah
+    #   until: __aap_setup_inst_result_ah.status == 200
+    #   retries: 90
+    #   delay: 10
+    #   when: "'automationhub' in aap_setup_prep_inv_nodes"
 
-    - name: Wait for automation hub to be running
-      ansible.builtin.uri: # use the first host from the list if no hostname is defined
-        url: https://{{ ah_hostname }}:{{ __aap_setup_inst_hub_port }}/api/galaxy/
-        method: GET
-        user: admin
-        password: "{{ aap_setup_prep_inv_secrets.all.hub_admin_password | default(aap_setup_prep_inv_vars.all.hub_admin_password) }}"
-        force_basic_auth: true
-        status_code: 200
-        validate_certs: "{{ ah_validate_certs | default(omit) }}"
-      register: __aap_setup_inst_result_ah
-      until: __aap_setup_inst_result_ah.status == 200
-      retries: 90
-      delay: 10
-      when: "'automationhub' in aap_setup_prep_inv_nodes"
-
-    - name: Wait for EDA controller to be running
-      ansible.builtin.uri: # use the first host from the list if no hostname is defined
-        url: https://{{ eda_hostname }}:{{ __aap_setup_inst_eda_port }}/
-        method: GET
-        user: admin
-        password: "{{ aap_setup_prep_inv_secrets.all.eda_admin_password | default(aap_setup_prep_inv_vars.all.eda_admin_password) }}"
-        validate_certs: "{{ eda_validate_certs | default('false') }}"
-        force_basic_auth: true
-      register: __aap_setup_inst_result_eda
-      until: __aap_setup_inst_result_eda.status == 200
-      retries: 90
-      delay: 10
-      when: "'automationeda' in aap_setup_prep_inv_nodes"
+    # - name: Wait for EDA controller to be running
+    #   ansible.builtin.uri: # use the first host from the list if no hostname is defined
+    #     url: https://{{ eda_hostname }}:{{ __aap_setup_inst_eda_port }}/
+    #     method: GET
+    #     user: admin
+    #     password: "{{ aap_setup_prep_inv_secrets.all.eda_admin_password | default(aap_setup_prep_inv_vars.all.eda_admin_password) }}"
+    #     validate_certs: "{{ eda_validate_certs | default('false') }}"
+    #     force_basic_auth: true
+    #   register: __aap_setup_inst_result_eda
+    #   until: __aap_setup_inst_result_eda.status == 200
+    #   retries: 90
+    #   delay: 10
+    #   when: "'automationeda' in aap_setup_prep_inv_nodes"
 
 ...
