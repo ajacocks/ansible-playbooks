@@ -1,3 +1,4 @@
+# from: https://www.redhat.com/en/blog/installing-gitlab-ce-rhel-9
 ---
 
 - name: Set vars for community edition
@@ -12,13 +13,17 @@
   when:
     - gitlab_edition == 'enterprise'
 
-- name: Import pre-tasks
-  ansible.builtin.import_tasks: install-prerequisites.yml
+- name: Execute installation
+  become: true
+  block:
 
-- name: Setup gitlab repo
-  ansible.builtin.import_tasks: setup-gitlab-repo.yml
+    - name: Import pre-tasks
+      ansible.builtin.import_tasks: install-prerequisites.yml
 
-- name: Install gitlab
-  ansible.builtin.import_tasks: install-gitlab.yml
+    - name: Setup gitlab repo
+      ansible.builtin.import_tasks: setup-gitlab-repo.yml
+
+    - name: Install gitlab
+      ansible.builtin.import_tasks: install-gitlab.yml
 
 ...

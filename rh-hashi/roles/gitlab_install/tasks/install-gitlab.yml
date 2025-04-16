@@ -6,7 +6,16 @@
   environment:
     EXTERNAL_URL: "https://{{ inventory_hostname }}"
     GITLAB_ROOT_PASSWORD: "{{ gitlab_admin_password }}"
+  register: gitlab_install_result
   notify:
-    - setup_api_token
+    - Setup_api_token
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Debug token creation
+  ansible.builtin.debug:
+    var: token_create_output
+  when: debug | default(false)
 
 ...

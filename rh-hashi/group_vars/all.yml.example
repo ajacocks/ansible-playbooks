@@ -16,6 +16,7 @@
 #aap_provision_redhat_subscription_manifest: false
 #aap_provision_redhat_username: user@example.com
 #aap_provision_redhat_password: CHANGEME
+#aap_provision_redhat_pool: CHANGEME
 
 # Change this to change the default password for AAP
 aap_install_common_password: CHANGEME
@@ -23,6 +24,9 @@ aap_install_common_password: CHANGEME
 # Override these role variables to install user-provided CA certs to the system trust store
 #aap_install_provide_certs: false
 #aap_install_custom_ca_cert: "custom-ca.crt"
+
+# Set the GitLab admin password here
+gitlab_install_password: CHANGEME
 
 terraform:
   license: <terraform license key>.hclic

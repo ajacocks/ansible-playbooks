@@ -1,0 +1,12 @@
+---
+- name: Provision Gitlab for AAP-HashiCorp integrated demo
+  hosts: "{{ groups['aap_hashi_gitlab'][0] }}"
+  tags: gitlab
+
+  roles:
+    - name: gitlab_install
+      vars:
+        gitlab_admin_password: "{{ gitlab_install_password}}"
+        gitlab_edition: community
+
+...

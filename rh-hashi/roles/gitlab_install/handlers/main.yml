@@ -1,9 +1,10 @@
 ---
 
 - name: Set access token for API access
+  become: true
   ansible.builtin.shell:
     cmd: >
-      gitlab-rails runner "token = User.find_by_username('root').personal_access_tokens.create(scopes: [:api], name: 'Ansible Automation token'); token.set_token('{{ gitlab_admin_password }}'); token.save!"
+      gitlab-rails runner "token = User.find_by_username('root').personal_access_tokens.create(scopes: ['api'], name: 'Ansible Automation token', expires_at: 365.days.from_now); token.set_token('{{ gitlab_admin_password }}'); token.save!"
   register: token_create_output
   listen:
     - Setup_api_token
