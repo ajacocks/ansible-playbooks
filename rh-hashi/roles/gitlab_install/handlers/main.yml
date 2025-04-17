@@ -9,4 +9,20 @@
   listen:
     - Setup_api_token
 
+- name: Update system ssl trust db
+  ansible.builtin.command:
+    cmd: update-ca-trust
+  become: true
+
+- name: Reconfigure gitlab
+  become: true
+  ansible.builtin.command:
+    cmd: gitlab-ctl reconfigure
+
+
+- name: Restart gitlab nginx
+  become: true
+  ansible.builtin.command:
+    cmd: gitlab-ctl restart nginx
+
 ...

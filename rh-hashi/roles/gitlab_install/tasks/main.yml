@@ -1,6 +1,47 @@
 # from: https://www.redhat.com/en/blog/installing-gitlab-ce-rhel-9
 ---
 
+- name: Create dir and copy over certs
+  become: true
+  when: gitlab_install_provide_certs
+  block:
+
+    - name: Create storage directory for certificates
+      ansible.builtin.file:
+        path: "{{ gitlab_install_cert_dir }}"
+        mode: '0755'
+        owner: "{{ gitlab_install_gitlab_user }}"
+        group: "{{ gitlab_install_gitlab_group }}"
+        state: directory
+
+    - name: Copy certs for this host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ gitlab_install_cert_dir }}"
+        owner: "{{ gitlab_install_gitlab_user }}"
+        group: "{{ gitlab_install_gitlab_group }}"
+        mode: '0644'
+      with_fileglob:
+        - "{{ gitlab_install_local_cert_dir }}/{{ inventory_hostname_short }}*"
+        - "{{ gitlab_install_local_cert_dir }}/root*"
+        - "{{ gitlab_install_local_cert_dir }}/intermediate*"
+
+    - name: Copy ca cetificates to system trusted anchors
+      ansible.builtin.copy:
+        src: "{{ gitlab_install_cert_dir }}/{{ item }}"
+        dest: /etc/pki/ca-trust/source/anchors/root_2025-ca.pem
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - root_2025-ca.crt
+        - intermediate.cert.pem
+      notify: Update system ssl trust db
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+
 - name: Set vars for community edition
   ansible.builtin.include_tasks:
     file: set-ce-edition.yml
@@ -25,5 +66,39 @@
 
     - name: Install gitlab
       ansible.builtin.import_tasks: install-gitlab.yml
+
+- name: Configure SSL for GitLab with provided certs
+  notify:
+    - Reconfigure gitlab
+    - Restart gitlab nginx
+  become: true
+  when: gitlab_install_provide_certs
+  block:
+
+    - name: Disable Let's Encrypt
+      ansible.builtin.lineinfile:
+        path: /etc/gitlab/gitlab.rb
+        regexp: "^\\s*#?\\s*letsencrypt\\['enable'\\]\\s*="
+        line: "letsencrypt['enable'] = false"
+
+    - name: Create GitLab SSL certificate from gitlab-ssl-cert.pem.j2 template
+      ansible.builtin.shell:
+        cmd: "cat {{ inventory_hostname }}-server.crt <(echo) intermediate.cert.pem > {{ inventory_hostname }}.crt"
+        chdir: "{{ gitlab_install_cert_dir }}"
+        creates: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.crt"
+
+    # - name: Create required GitHub certificate symlink
+    #   ansible.builtin.file:
+    #     src: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}-server.crt"
+    #     dest: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.crt"
+    #     state: link
+    #     force: true
+
+    - name: Create required GitHub certificate key symlink
+      ansible.builtin.file:
+        src: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}-server.key"
+        dest: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.key"
+        state: link
+        force: true
 
 ...

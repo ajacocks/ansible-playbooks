@@ -6,6 +6,7 @@
   environment:
     EXTERNAL_URL: "https://{{ inventory_hostname }}"
     GITLAB_ROOT_PASSWORD: "{{ gitlab_admin_password }}"
+    GITLAB_EMAIL_FROM: "gitlab@{{ inventory_hostname }}"
   register: gitlab_install_result
   notify:
     - Setup_api_token
@@ -17,5 +18,15 @@
   ansible.builtin.debug:
     var: token_create_output
   when: debug | default(false)
+
+- name: Open SSL firewall port
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - 443/tcp
+    - 80/tcp
 
 ...

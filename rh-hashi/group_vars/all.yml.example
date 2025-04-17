@@ -28,6 +28,9 @@ aap_install_common_password: CHANGEME
 # Set the GitLab admin password here
 gitlab_install_password: CHANGEME
 
+# Override these role variables to install user-provided CA certs to the system trust store
+#gitlab_install_provide_certs: false
+
 terraform:
   license: <terraform license key>.hclic
   dir: "{{ ansible_user_dir }}/terraform"
