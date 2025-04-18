@@ -4,6 +4,7 @@
   tags: gitlab
 
   roles:
+    - name: gitlab_provision
     - name: gitlab_install
       vars:
         gitlab_admin_password: "{{ gitlab_install_password}}"

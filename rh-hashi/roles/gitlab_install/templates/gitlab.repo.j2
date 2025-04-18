@@ -1,6 +1,6 @@
 [gitlab_gitlab-{{ edition_abbreviation }}]
 name=gitlab_gitlab-{{ edition_abbreviation }}
-baseurl=https://packages.gitlab.com/gitlab/gitlab-{{ edition_abbreviation }}/el/8/$basearch
+baseurl=https://packages.gitlab.com/gitlab/gitlab-{{ edition_abbreviation }}/el/$releasever/$basearch
 repo_gpgcheck=1
 gpgcheck=1
 enabled=1
@@ -12,7 +12,7 @@ metadata_expire=300
 
 [gitlab_gitlab-{{ edition_abbreviation }}-source]
 name=gitlab_gitlab-{{ edition_abbreviation }}-source
-baseurl=https://packages.gitlab.com/gitlab/gitlab-{{ edition_abbreviation }}/el/8/SRPMS
+baseurl=https://packages.gitlab.com/gitlab/gitlab-{{ edition_abbreviation }}/el/$releasever/SRPMS
 repo_gpgcheck=1
 gpgcheck=1
 enabled=1

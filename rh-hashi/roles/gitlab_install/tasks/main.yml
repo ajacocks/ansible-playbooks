@@ -81,7 +81,36 @@
         regexp: "^\\s*#?\\s*letsencrypt\\['enable'\\]\\s*="
         line: "letsencrypt['enable'] = false"
 
+    - name: Check to see if the server.crt already exists in gitlab_install_cert_dir
+      ansible.builtin.stat:
+        path: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.crt"
+      register: gitlab_install_server_crt
+
+    - name: If the cert exists, use openssl verify to check it
+      when: gitlab_install_server_crt.stat.exists
+      block:
+        - name: Check the server certificate's authenticity
+          ansible.builtin.command:
+            cmd: openssl verify -CAfile "{{ gitlab_install_cert_dir }}/intermediate.cert.pem" "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.crt"
+          changed_when: false
+          ignore_errors: true
+          register: gitlab_install_cert_check
+
+    - name: Debug certificate details
+      ansible.builtin.debug:
+        var: gitlab_install_cert_check
+      when: debug | default(false)
+
+    - name: Remove server cert when gitlab_install_server_crt.stat.exists and gitlab_install_cert_check.rc != 0
+      ansible.builtin.file:
+        path: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.crt"
+        state: absent
+      when:
+        - gitlab_install_server_crt.stat.exists
+        - gitlab_install_cert_check.rc != 0
+
     - name: Create GitLab SSL certificate from gitlab-ssl-cert.pem.j2 template
+      when: gitlab_install_cert_check.rc != 0
       ansible.builtin.shell:
         cmd: "cat {{ inventory_hostname }}-server.crt <(echo) intermediate.cert.pem > {{ inventory_hostname }}.crt"
         chdir: "{{ gitlab_install_cert_dir }}"

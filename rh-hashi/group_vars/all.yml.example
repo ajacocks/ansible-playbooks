@@ -25,6 +25,11 @@ aap_install_common_password: CHANGEME
 #aap_install_provide_certs: false
 #aap_install_custom_ca_cert: "custom-ca.crt"
 
+# Override these role variables to attach a RHEL subscription to the GitLab RHEL server
+#gitlab_provision_redhat_subscription: false
+#gitlab_provision_redhat_username: user@example.com
+#gitlab_provision_redhat_password: CHANGEME
+
 # Set the GitLab admin password here
 gitlab_install_password: CHANGEME
 
