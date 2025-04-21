@@ -195,3 +195,31 @@ output "vault_pki_secret_backend_cert_aap_{{ vault.resource_name }}_private_key"
   value = vault_pki_secret_backend_cert.aap_{{ vault.resource_name }}.private_key
   sensitive = true
 }
+
+#  vault write pki_int/issue/{{ vault.intermediate_name }} common_name="terraform.{{ vault.domain }}" ttl="24h"
+
+resource "vault_pki_secret_backend_cert" "terraform_{{ vault.resource_name }}" {
+  issuer_ref  = vault_pki_secret_backend_issuer.intermediate.issuer_ref
+  backend     = vault_pki_secret_backend_role.intermediate_role.backend
+  name        = vault_pki_secret_backend_role.intermediate_role.name
+  common_name = "terraform.{{ vault.domain }}"
+  ttl         = 15480000
+  revoke      = true
+}
+
+output "vault_pki_secret_backend_cert_terraform_{{ vault.resource_name }}_cert" {
+  value = vault_pki_secret_backend_cert.terraform_{{ vault.resource_name }}.certificate
+}
+
+output "vault_pki_secret_backend_cert_terraform_{{ vault.resource_name }}_serial_number" {
+  value = vault_pki_secret_backend_cert.terraform_{{ vault.resource_name }}.serial_number
+}
+
+output "vault_pki_secret_backend_cert_terraform_{{ vault.resource_name }}_ca_chain" {
+  value = vault_pki_secret_backend_cert.terraform_{{ vault.resource_name }}.ca_chain
+}
+
+output "vault_pki_secret_backend_cert_terraform_{{ vault.resource_name }}_private_key" {
+  value = vault_pki_secret_backend_cert.terraform_{{ vault.resource_name }}.private_key
+  sensitive = true
+}
