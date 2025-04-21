@@ -1,4 +1,5 @@
 ---
+
 - name: Provision Gitlab for AAP-HashiCorp integrated demo
   hosts: "{{ groups['aap_hashi_gitlab'][0] }}"
   tags: gitlab

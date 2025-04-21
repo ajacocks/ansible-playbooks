@@ -1,0 +1,26 @@
+---
+
+- name: Install prerequisites
+  ansible.builtin.yum:
+    name:
+      - yum-utils
+      - policycoreutils
+      - openssh-server
+      - openssh-clients
+      - container-tools
+      - cockpit-podman
+  register: packages_installed
+
+- name: Start/enable services
+  ansible.builtin.systemd:
+    name: "{{ service }}"
+    enabled: yes
+    state: started
+  loop_control:
+    loop_var: service
+  loop:
+    - podman
+  when:
+    - packages_installed.changed
+
+...

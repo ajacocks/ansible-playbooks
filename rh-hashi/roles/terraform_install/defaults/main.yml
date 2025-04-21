@@ -1,0 +1,23 @@
+---
+
+terraform_install_terraform_group: tfe
+terraform_install_terraform_user: tfe
+terraform_install_home_dir: /home/tfe
+terraform_install_terraform_user_dir: "{{ terraform_install_home_dir }}/terraform"
+terraform_install_terraform_data_dir: "{{ terraform_install_terraform_user_dir }}/data"
+
+# Install user-provided certs
+terraform_install_provide_certs: false
+terraform_install_local_cert_dir: /tmp/target
+terraform_install_cert_dir: /home/tfe/certs
+
+terraform_install_installer_bundle: ansible-automation-platform-containerized-setup-bundle-2.5-11.1-x86_64.tar.gz
+terraform_install_installer_dir: "{{ terraform_install_terraform_user_dir }}/{{ terraform_install_installer_bundle | basename | regex_replace('\\.tar.gz$', '') }}"
+
+# installation inventory variable overrides
+terraform_install_common_password: CHANGEME
+terraform_install_common_cert: "{{ inventory_hostname }}-server.crt"
+terraform_install_common_key: "{{ inventory_hostname }}-server.key"
+terraform_install_custom_ca_cert: "custom-ca.crt"
+
+...

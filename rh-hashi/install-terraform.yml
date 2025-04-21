@@ -1,0 +1,11 @@
+---
+
+- name: Provision Terraform for AAP-HashiCorp integrated demo
+  hosts: "{{ groups['aap_hashi_terraform'][0] }}"
+  tags: terraform
+
+  roles:
+    - name: terraform_provision
+    - name: terraform_install
+
+...
