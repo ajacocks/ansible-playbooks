@@ -44,9 +44,12 @@ gitlab_install_password: CHANGEME
 # Override this role variable to point to your local Terraform license file
 terraform_install_license_file: /tmp/terraform.hclic
 
-# Set the Terraform admin password here
-terraform_install_password: CHANGEME
+# Set the Terraform admin password here (minimum 10 characters)
+terraform_install_password: CHANGEMENOW
 
+# Set the Terraform admin credentials here
+terraform_install_admin_email: CHANGEME@CHANGEME.COM
+terraform_install_admin_orgname: CHANGEME
 
 terraform:
   license: <terraform license key>.hclic

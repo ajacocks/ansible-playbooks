@@ -1,53 +1,186 @@
 ---
 
-- name: Install gitlab with specific version
-  when: gitlab_specific is defined
-  block:
-    - name: Copy specified version of gitlab RPM to system
-      ansible.builtin.copy:
-        src: "{{ gitlab_specific }}"
-        dest: /root/
-        mode: '0644'
+- name: Login to hashicorp registry
+  containers.podman.podman_login:
+    registry: images.releases.hashicorp.com
+    username: terraform
+    password: "{{ lookup('ansible.builtin.file', terraform_install_license_file) }}"
 
-    - name: Install gitlab
-      ansible.builtin.yum:
-        name: "/root/{{ gitlab_specific }}"
-      environment:
-        EXTERNAL_URL: "https://{{ inventory_hostname }}"
-        GITLAB_ROOT_PASSWORD: "{{ gitlab_admin_password }}"
-        GITLAB_EMAIL_FROM: "gitlab@{{ inventory_hostname }}"
-      register: gitlab_install_result
-      notify:
-        - Setup_api_token
+- name: Pull an image
+  containers.podman.podman_image:
+    name: "images.releases.hashicorp.com/hashicorp/terraform-enterprise:{{ terraform_install_image_tag }}"
 
-- name: Install gitlab
-  when: not gitlab_specific is defined
-  ansible.builtin.yum:
-    name: "{{ gitlab_package }}"
+- name: Copy over podman yml config template
+  ansible.builtin.template:
+    src: tfe-config-podman.yml.j2
+    dest: "{{ terraform_home_dir }}/tfe-config-podman.yml"
+    owner: "{{ terraform_user }}"
+    group: "{{ terraform_group }}"
+    mode: '0644'
+
+- name: Create needed certificate symlinks for tfe install
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+    owner: "{{ terraform_user }}"
+    group: "{{ terraform_group }}"
+    force: true
+  loop:
+    - src: "terraform.{{ install_domain }}-server.crt"
+      dest: '{{ terraform_install_cert_dir }}/cert.pem'
+    - src: "terraform.{{ install_domain }}-server.key"
+      dest: '{{ terraform_install_cert_dir }}/key.pem'
+    - src: "terraform.{{ install_domain }}-ca_chain.crt"
+      dest: '{{ terraform_install_cert_dir }}/bundle.pem'
+
+
+- name: Check if user is lingering
+  ansible.builtin.stat:
+    path: "/var/lib/systemd/linger/{{ terraform_user }}"
+  register: user_lingering
+
+- name: Enable lingering for user
+  ansible.builtin.command: "loginctl enable-linger {{ terraform_user }}"
+  changed_when: true
+  when: not user_lingering.stat.exists
+
+- name: Get podman user info
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ terraform_user }}"
+    fail_key: false
+
+- name: Enable podman.socket for user
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: true
+    state: started
+    scope: user
   environment:
-    EXTERNAL_URL: "https://{{ inventory_hostname }}"
-    GITLAB_ROOT_PASSWORD: "{{ gitlab_admin_password }}"
-    GITLAB_EMAIL_FROM: "gitlab@{{ inventory_hostname }}"
-  register: gitlab_install_result
-  notify:
-    - Setup_api_token
+    XDG_RUNTIME_DIR: "/run/user/{{ getent_passwd[terraform_user].1 }}"
 
-- name: Flush handlers
-  ansible.builtin.meta: flush_handlers
+- name: Play kube file
+  containers.podman.podman_play:
+    kube_file: "{{ terraform_home_dir }}/tfe-config-podman.yml"
+    state: started
+  register: tfe_install_result
 
-- name: Debug token creation
+- name: Debug tfe install when debug is set
   ansible.builtin.debug:
-    var: token_create_output
+    var: tfe_install_result
   when: debug | default(false)
 
-- name: Open SSL firewall port
-  ansible.posix.firewalld:
-    port: "{{ item }}"
-    permanent: true
-    state: enabled
-    immediate: true
-  loop:
-    - 443/tcp
-    - 80/tcp
+- name: Check status of tfe
+  ansible.builtin.shell: podman exec -it terraform-enterprise-terraform-enterprise tfe-health-check-status | grep PASS | wc -l
+  register: "tfe_status"
+  until: tfe_status.stdout == "5"
+  retries: 20
+  delay: 12
+  changed_when: false
+
+- name: Retreive IACT Token
+  ansible.builtin.shell: podman exec -it terraform-enterprise-terraform-enterprise curl localhost:8080/admin/retrieve-iact
+  register: admin_token
+
+- name: Debug IACT token
+  ansible.builtin.debug:
+    msg: "{{ admin_token }}"
+  when: debug | default(false)
+
+- name: Save admin token
+  ansible.builtin.copy:
+    content: "{{ admin_token.stdout }}"
+    dest: "{{ terraform_install_admin_token }}"
+    owner: "{{ terraform_user }}"
+    group: "{{ terraform_group }}"
+    mode: '0600'
+
+- name: Get the status of the file {{ terraform_install_admin_login }}
+  register: admin_login_file
+  ansible.builtin.stat:
+    path: "{{ terraform_install_admin_login }}"
+
+- name: Debug file status
+  ansible.builtin.debug:
+    var: admin_login_file
+  when: debug | default(false)
+
+- name: Create admin user during initial run
+  when: not admin_login_file.stat.exists | bool
+  block:
+    - name: Create Admin User using IACT Token
+      ansible.builtin.uri:
+        url: "https://terraform.{{ install_domain }}/admin/initial-admin-user?token={{ admin_token.stdout }}"
+        method: POST
+        headers:
+          Content-Type: application/json
+        body: '{"username":"admin","email":"{{ terraform_install_admin_email }}","password":"{{ terraform_install_common_password }}"}'
+        body_format: json
+      register: admin_login
+
+    - name: Debug admin user creation
+      ansible.builtin.debug:
+        msg: "{{ admin_login }}"
+      when: debug | default(false)
+
+    - name: Save admin_login data to file (unable to reissue admin api token once generated)
+      ansible.builtin.copy:
+        content: "{{ admin_login.json.token }}"
+        dest: "{{ terraform_install_admin_login }}"
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
+        mode: '0600'
+
+- name: Read in the admin login file
+  block:
+
+    - name: Read in the admin login file from the terraform host
+      ansible.builtin.slurp:
+        src: "{{ terraform_install_admin_login }}"
+      register: admin_login_file_b64
+
+    - name: Register b64 decoded admin_login_file_b64 as admin credential
+      ansible.builtin.set_fact:
+        admin_login: "{{ admin_login_file_b64['content'] | b64decode }}"
+
+- name: Get the status of the file {{ terraform_install_admin_org }}
+  register: admin_org_file
+  ansible.builtin.stat:
+    path: "{{ terraform_install_admin_org }}"
+
+- name: Debug file status
+  ansible.builtin.debug:
+    var: admin_org_file
+  when: debug | default(false)
+
+- name: Create admin organization
+  when: ( admin_login_file.stat.exists | bool ) and not ( admin_org_file.stat.exists | bool )
+  block:
+
+    - name: Create Organization using Admin Token
+      ansible.builtin.uri:
+        url: "https://terraform.{{ install_domain }}/api/v2/organizations"
+        method: POST
+        headers:
+          Content-Type: application/vnd.api+json
+          Authorization: "Bearer {{ admin_login }}"
+        body: '{ "data": { "type": "organizations", "attributes": { "name": "{{ terraform_install_admin_orgname }}", "email": "{{ terraform_install_admin_email }}" } } }'
+        body_format: json
+        status_code: 201
+      register: create_org
+
+    - name: Debug organization creation
+      ansible.builtin.debug:
+        msg: "{{ create_org }}"
+      when: debug | default(false)
+
+    - name: Write admin organization data to a file
+      ansible.builtin.copy:
+        content: "{{ create_org.json }}"
+        dest: "{{ terraform_install_admin_org }}"
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
+        mode: '0600'
 
 ...

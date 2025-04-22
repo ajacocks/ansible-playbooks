@@ -1,10 +1,18 @@
 ---
 
-terraform_install_terraform_group: tfe
-terraform_install_terraform_user: tfe
-terraform_install_home_dir: /home/tfe
-terraform_install_terraform_user_dir: "{{ terraform_install_home_dir }}/terraform"
+# user info
+terraform_group: tfe
+terraform_user: tfe
+terraform_home_dir: /home/tfe
+
+# storage directories
+terraform_install_terraform_user_dir: "{{ terraform_home_dir }}/terraform"
 terraform_install_terraform_data_dir: "{{ terraform_install_terraform_user_dir }}/data"
+
+# token storage
+terraform_install_admin_token: "{{ terraform_install_terraform_user_dir }}/.admin_token.txt"
+terraform_install_admin_login: "{{ terraform_install_terraform_user_dir }}/.admin_login.txt"
+terraform_install_admin_org: "{{ terraform_install_terraform_user_dir }}/.admin_org.txt"
 
 # Install user-provided certs
 terraform_install_provide_certs: false
@@ -19,5 +27,12 @@ terraform_install_common_password: CHANGEME
 terraform_install_common_cert: "{{ inventory_hostname }}-server.crt"
 terraform_install_common_key: "{{ inventory_hostname }}-server.key"
 terraform_install_custom_ca_cert: "custom-ca.crt"
+
+# terraform container version
+terraform_install_image_tag: v202503-1
+
+# admin user and org credentials
+terraform_install_admin_email: CHANGEME@CHANGEME.COM
+terraform_install_admin_orgname: CHANGEME
 
 ...

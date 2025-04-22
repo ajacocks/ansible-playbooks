@@ -22,4 +22,46 @@
         state: latest
       when: terraform_provision_rhel_update
 
+- name: Create user and home directory structure
+  become: true
+  block:
+
+    - name: Create group for terraform
+      ansible.builtin.group:
+        name: "{{ terraform_group }}"
+        state: present
+
+    - name: Create user for terraform
+      ansible.builtin.user:
+        name: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
+        groups: wheel
+        shell: /bin/bash
+        state: present
+        home: "{{ terraform_home_dir }}"
+        create_home: true
+
+    - name: Copy .ssh authorized keys from login user
+      ansible.builtin.copy:
+        src: /home/{{ ansible_user_id }}/.ssh/authorized_keys
+        dest: "~{{ terraform_user }}/.ssh/"
+        remote_src: true
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
+        mode: '0644'
+
+    - name: Export podman.socket
+      ansible.builtin.lineinfile:
+        dest: "/home/{{ terraform_user }}/.bashrc"
+        line: "export DOCKER_HOST=unix:$XDG_RUNTIME_DIR/podman/podman.sock"
+        insertafter: "EOF"
+
+    - name: Copy over terraform license file
+      ansible.builtin.copy:
+        src: "{{ terraform_install_license_file }}"
+        dest: "{{ terraform_home_dir }}/"
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
+        mode: '0644'
+
 ...

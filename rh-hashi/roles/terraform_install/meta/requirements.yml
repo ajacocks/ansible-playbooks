@@ -2,7 +2,7 @@
 
 collections:
 
-  - name: ansible.posix
-    version: ">=1.6.2"
+  - name: containers.podman
+    version: ">=1.16.3"
 
 ...

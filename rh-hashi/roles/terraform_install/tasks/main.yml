@@ -1,43 +1,6 @@
 # from: https://www.redhat.com/en/blog/installing-terraform-ce-rhel-9
 ---
 
-- name: Create user and home directory structure
-  become: true
-  block:
-
-    - name: Create group for terraform
-      ansible.builtin.group:
-        name: "{{ terraform_install_terraform_group }}"
-        state: present
-
-    - name: Create user for terraform
-      ansible.builtin.user:
-        name: "{{ terraform_install_terraform_user }}"
-        group: "{{ terraform_install_terraform_group }}"
-        shell: /bin/bash
-        state: present
-        home: "{{ terraform_install_home_dir }}"
-        create_home: true
-
-    - name: Create needed storage directories
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: "{{ terraform_install_terraform_user }}"
-        group: "{{ terraform_install_terraform_group }}"
-        mode: '0755'
-      loop:
-        - "{{ terraform_install_terraform_user_dir }}"
-        - "{{ terraform_install_terraform_data_dir }}"
-
-    - name: Copy over terraform license file
-      ansible.builtin.copy:
-        src: "{{ terraform_install_license_file }}"
-        dest: "{{ terraform_install_home_dir }}/"
-        owner: "{{ terraform_install_terraform_user }}"
-        group: "{{ terraform_install_terraform_group }}"
-        mode: '0644'
-
 - name: Create dir and copy over certs
   become: true
   when: terraform_install_provide_certs
@@ -47,16 +10,16 @@
       ansible.builtin.file:
         path: "{{ terraform_install_cert_dir }}"
         mode: '0755'
-        owner: "{{ terraform_install_terraform_user }}"
-        group: "{{ terraform_install_terraform_group }}"
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
         state: directory
 
     - name: Copy certs for this host
       ansible.builtin.copy:
         src: "{{ item }}"
         dest: "{{ terraform_install_cert_dir }}"
-        owner: "{{ terraform_install_terraform_user }}"
-        group: "{{ terraform_install_terraform_group }}"
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
         mode: '0644'
       with_fileglob:
         - "{{ terraform_install_local_cert_dir }}/{{ inventory_hostname_short }}*"
@@ -80,78 +43,13 @@
       ansible.builtin.meta: flush_handlers
 
 - name: Execute installation
-  become: true
   block:
 
     - name: Import pre-tasks
+      become: true
       ansible.builtin.import_tasks: install-prerequisites.yml
-
-    - fail:
 
     - name: Install terraform
       ansible.builtin.import_tasks: install-terraform.yml
-
-- name: Configure SSL for terraform with provided certs
-  notify:
-    - Reconfigure terraform
-    - Restart terraform nginx
-  become: true
-  when: terraform_install_provide_certs
-  block:
-
-    - name: Disable Let's Encrypt
-      ansible.builtin.lineinfile:
-        path: /etc/terraform/terraform.rb
-        regexp: "^\\s*#?\\s*letsencrypt\\['enable'\\]\\s*="
-        line: "letsencrypt['enable'] = false"
-
-    - name: Check to see if the server.crt already exists in terraform_install_cert_dir
-      ansible.builtin.stat:
-        path: "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}.crt"
-      register: terraform_install_server_crt
-
-    - name: If the cert exists, use openssl verify to check it
-      when: terraform_install_server_crt.stat.exists
-      block:
-        - name: Check the server certificate's authenticity
-          ansible.builtin.command:
-            cmd: openssl verify -CAfile "{{ terraform_install_cert_dir }}/intermediate.cert.pem" "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}.crt"
-          changed_when: false
-          ignore_errors: true
-          register: terraform_install_cert_check
-
-    - name: Debug certificate details
-      ansible.builtin.debug:
-        var: terraform_install_cert_check
-      when: debug | default(false)
-
-    - name: Remove server cert when terraform_install_server_crt.stat.exists and terraform_install_cert_check.rc != 0
-      ansible.builtin.file:
-        path: "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}.crt"
-        state: absent
-      when:
-        - terraform_install_server_crt.stat.exists
-        - terraform_install_cert_check.rc != 0
-
-    - name: Create terraform SSL certificate from terraform-ssl-cert.pem.j2 template
-      when: terraform_install_cert_check.rc != 0
-      ansible.builtin.shell:
-        cmd: "cat {{ inventory_hostname }}-server.crt <(echo) intermediate.cert.pem > {{ inventory_hostname }}.crt"
-        chdir: "{{ terraform_install_cert_dir }}"
-        creates: "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}.crt"
-
-    # - name: Create required GitHub certificate symlink
-    #   ansible.builtin.file:
-    #     src: "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}-server.crt"
-    #     dest: "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}.crt"
-    #     state: link
-    #     force: true
-
-    - name: Create required GitHub certificate key symlink
-      ansible.builtin.file:
-        src: "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}-server.key"
-        dest: "{{ terraform_install_cert_dir }}/{{ inventory_hostname }}.key"
-        state: link
-        force: true
 
 ...

@@ -6,6 +6,13 @@
 
   roles:
     - name: terraform_provision
+
+- name: Run installation for terraform
+  hosts: "{{ groups['aap_hashi_terraform'][0] }}"
+  tags: terraform
+  remote_user: "{{ terraform_user }}"
+
+  roles:
     - name: terraform_install
 
 ...

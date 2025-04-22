@@ -28,8 +28,10 @@ spec:
     - name: "TFE_DISK_CACHE_VOLUME_NAME"
       value: "terraform-enterprise_terraform-enterprise-cache"
     - name: "TFE_ENCRYPTION_PASSWORD"
-      value: '{{ terraform_install_password }}'
-    image: "images.releases.hashicorp.com/hashicorp/terraform-enterprise:<vYYYYMM-#>"
+      value: '{{ terraform_install_common_password }}'
+    - name: "TFE_VAULT_DISABLE_MLOCK"
+      value: "true"
+    image: "images.releases.hashicorp.com/hashicorp/terraform-enterprise:{{ terraform_install_image_tag }}"
     name: "terraform-enterprise"
     ports:
     - containerPort: 8080
@@ -79,7 +81,7 @@ spec:
       type: "Directory"
     name: "data"
   - hostPath:
-      path: "/run/podman/podman.sock"
+      path: "/run/user/{{ ansible_facts.user_uid }}/podman/podman.sock"
       type: "File"
     name: "docker-sock"
   - name: "terraform-enterprise_terraform-enterprise-cache-pvc"
