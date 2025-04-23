@@ -10,7 +10,9 @@
 - name: Run installation for aap
   hosts: "{{ groups['aap_hashi_aap'][0] }}"
   tags: aap
-  remote_user: "{{ aap.user }}"
+
+  vars:
+    ansible_user: "{{ aap.user }}"
 
   tasks:
 

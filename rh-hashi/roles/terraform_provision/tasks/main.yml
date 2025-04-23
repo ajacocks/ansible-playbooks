@@ -41,6 +41,13 @@
         home: "{{ terraform_home_dir }}"
         create_home: true
 
+    - name: Set user terraform_user to be able to sudo to root without a password
+      community.general.sudoers:
+        name: "99-{{ terraform_user }}"
+        user: "{{ terraform_user }}"
+        commands: ALL
+        nopassword: true
+
     - name: Copy .ssh authorized keys from login user
       ansible.builtin.copy:
         src: /home/{{ ansible_user_id }}/.ssh/authorized_keys

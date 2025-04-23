@@ -11,6 +11,8 @@
       - cockpit-podman
       - podman-docker
       - dbus
+      - python3-firewall
+      - firewalld
   register: packages_installed
 
 - name: Start/enable services
@@ -22,6 +24,7 @@
     loop_var: service
   loop:
     - podman
+    - firewalld
   when:
     - packages_installed.changed
 
