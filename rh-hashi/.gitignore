@@ -3,4 +3,8 @@ files/**
 inventory
 group_vars/all.yml
 ansible.cfg
-*.pem
+ec2_key*
+terraform*
+main.tf
+.terraform*
+.terraform/**
