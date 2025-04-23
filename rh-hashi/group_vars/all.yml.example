@@ -1,4 +1,11 @@
 ---
+# AWS information
+aws_profile: default                # aws profile name from ~/.aws/credentials
+aws_domain: CHANGEME.DOMAIN.NAME    # domain name for environment
+aws_ami: ami-003555ce5d8d2de2b      # RHEL-9.5.0_HVM-20250313-x86_64-0-Access2-GP3 us-east-2
+aws_type: m7a.xlarge                # 4 vCPUs, 16 GiB RAM 4g EPYC
+r53_zone_id: CHANGEME               # AWS Route53 zone ID
+
 # Override these role variables to attach a RHEL subscription to the Vault RHEL server
 #vault_provision_redhat_subscription: true
 #vault_provision_redhat_username: user@example.com
@@ -45,14 +52,13 @@ gitlab_install_password: CHANGEME
 terraform_install_license_file: /tmp/terraform.hclic
 
 # Set the Terraform admin password here (minimum 10 characters)
-terraform_install_password: CHANGEMENOW
+terraform_install_common_password: CHANGEMENOW
 
 # Set the Terraform admin credentials here
 terraform_install_admin_email: CHANGEME@CHANGEME.COM
 terraform_install_admin_orgname: CHANGEME
 
 terraform:
-  license: <terraform license key>.hclic
   dir: "{{ ansible_user_dir }}/terraform"
   certdir: "{{ ansible_user_dir }}/terraform/certs"
 
@@ -71,9 +77,6 @@ local:
   certdir: "/tmp/target"
 
 vault:
-  domain: your.domain.name # replace the next three with your FQDN
-  intermediate_name: your-domain-name # FQDN with - instead of .
-  resource_name: your_domain_name # FQDN with _ instead of .
   unseal:
     key_count: 5
     threshold: 3
