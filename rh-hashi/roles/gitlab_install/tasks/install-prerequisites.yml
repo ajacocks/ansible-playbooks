@@ -8,6 +8,8 @@
       - openssh-server
       - openssh-clients
       - postfix
+      - python3-firewall
+      - firewalld
   register: packages_installed
 
 - name: Start/enable services
@@ -20,6 +22,7 @@
   loop:
     - sshd
     - postfix
+    - firewalld
   when:
     - packages_installed.changed
 
