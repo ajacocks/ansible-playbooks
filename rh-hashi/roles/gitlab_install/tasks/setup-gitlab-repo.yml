@@ -22,5 +22,6 @@
   loop:
     - "https://packages.gitlab.com/gitlab/gitlab-{{ edition_abbreviation }}/gpgkey"
     - "https://packages.gitlab.com/gitlab/gitlab-{{ edition_abbreviation }}/gpgkey/gitlab-gitlab-{{ edition_abbreviation }}-3D645A26AB9FBD22.pub.gpg"
+    - "https://packages.gitlab.com/gitlab/gitlab-{{ edition_abbreviation }}/gpgkey/gitlab-gitlab-{{ edition_abbreviation }}-CB947AD886C8E8FD.pub.gpg"
 
 ...

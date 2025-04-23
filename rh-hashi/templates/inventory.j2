@@ -3,7 +3,7 @@
 install_domain={{ aws_domain }}
 ansible_user=ec2-user
 ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'
-ansible_ssh_private_key_file={{ playbook_dir }}/ec2_privkey.pem
+ansible_ssh_private_key_file={{ playbook_dir }}/ec2_key
 [aap_hashi:children]
 aap_hashi_vault
 aap_hashi_terraform
