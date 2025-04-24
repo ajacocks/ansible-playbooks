@@ -131,6 +131,16 @@
         owner: "{{ terraform_user }}"
         group: "{{ terraform_group }}"
         mode: '0600'
+    
+    - name: Get the status of the file {{ terraform_install_admin_login }}
+      register: admin_login_file
+      ansible.builtin.stat:
+        path: "{{ terraform_install_admin_login }}"
+
+    - name: Debug file status
+      ansible.builtin.debug:
+        var: admin_login_file
+      when: debug | default(false)
 
 - name: Read in the admin login file
   block:
