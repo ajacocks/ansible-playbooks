@@ -143,4 +143,18 @@
         force: true
         mode: '0644'
 
+- name: Do power-install configuration
+  hosts: aap_hashi
+  become: true
+
+  tasks:
+
+    - name: Add default IP address to /etc/hosts with inventory_hostname
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ ansible_default_ipv4.address }} {{ inventory_hostname }} {{ inventory_hostname_short }}"
+        regexp: "^{{ ansible_default_ipv4.address }}"
+        state: present
+      become: true
+
 ...
