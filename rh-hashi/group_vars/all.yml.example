@@ -1,10 +1,16 @@
 ---
+
+# Domain name for environment
+domain_name: CHANGEME.DOMAIN.NAME 
+ssh_key_name: ec2_key
+
 # AWS information
-aws_profile: default                # aws profile name from ~/.aws/credentials
-aws_domain: CHANGEME.DOMAIN.NAME    # domain name for environment
-aws_ami: ami-003555ce5d8d2de2b      # RHEL-9.5.0_HVM-20250313-x86_64-0-Access2-GP3 us-east-2
-aws_type: m7a.xlarge                # 4 vCPUs, 16 GiB RAM 4g EPYC
-r53_zone_id: CHANGEME               # AWS Route53 zone ID
+# this section is only used by deploy-hosts.yml for AWS deployment. Other deployments don't need it.
+aws_profile: default                        # aws profile name from ~/.aws/credentials
+aws_ami: ami-003555ce5d8d2de2b              # RHEL-9.5.0_HVM-20250313-x86_64-0-Access2-GP3 us-east-2
+aws_type: m7a.xlarge                        # 4 vCPUs, 16 GiB RAM 4g EPYC
+aws_domain: "{{ domain_name }}"
+ec2_priv_keyfile_name: "{{ ssh_key_name }}" 
 
 # Override these role variables to attach a RHEL subscription to the Vault RHEL server
 #vault_provision_redhat_subscription: true

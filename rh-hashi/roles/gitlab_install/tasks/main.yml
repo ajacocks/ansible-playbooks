@@ -116,14 +116,7 @@
         chdir: "{{ gitlab_install_cert_dir }}"
         creates: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.crt"
 
-    # - name: Create required GitHub certificate symlink
-    #   ansible.builtin.file:
-    #     src: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}-server.crt"
-    #     dest: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.crt"
-    #     state: link
-    #     force: true
-
-    - name: Create required GitHub certificate key symlink
+    - name: Create required gitlab certificate key symlink
       ansible.builtin.file:
         src: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}-server.key"
         dest: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.key"

@@ -5,7 +5,7 @@
   tags: infrastructure
 
   vars:
-    ec2_priv_keyfile: "{{ playbook_dir }}/ec2_key"
+    ec2_priv_keyfile: "{{ playbook_dir }}/{{ ec2_priv_keyfile_name }}"
 
   tasks:
 

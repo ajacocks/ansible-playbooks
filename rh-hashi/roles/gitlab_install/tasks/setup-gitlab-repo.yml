@@ -15,7 +15,7 @@
   when:
     - repo_file_pushed.changed
 
-- name: Import github keys
+- name: Import gitlab keys
   ansible.builtin.rpm_key:
     state: present
     key: "{{ item }}"
