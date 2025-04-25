@@ -22,9 +22,9 @@
         group: "{{ terraform_group }}"
         mode: '0644'
       with_fileglob:
-        - "{{ terraform_install_local_cert_dir }}/{{ inventory_hostname_short }}*"
-        - "{{ terraform_install_local_cert_dir }}/root*"
-        - "{{ terraform_install_local_cert_dir }}/intermediate*"
+        - "{{ local_cert_dir }}/{{ inventory_hostname_short }}*"
+        - "{{ local_cert_dir }}/root*"
+        - "{{ local_cert_dir }}/intermediate*"
 
     - name: Copy ca cetificates to system trusted anchors
       ansible.builtin.copy:

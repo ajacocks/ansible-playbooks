@@ -64,6 +64,9 @@ terraform_install_common_password: CHANGEMENOW
 terraform_install_admin_email: CHANGEME@CHANGEME.COM
 terraform_install_admin_orgname: CHANGEME
 
+# where certificates are stored on the executing host
+local_certdir: "{{ playbook_dir }}/data"
+
 terraform:
   dir: "{{ ansible_user_dir }}/terraform"
   certdir: "{{ ansible_user_dir }}/terraform/certs"
@@ -78,9 +81,6 @@ aap:
   validate_certs: true
 
 installer_extracted: "{{ aap.installer | regex_replace('\\.tar.gz$', '') }}"
-
-local:
-  certdir: "/tmp/target"
 
 vault:
   unseal:

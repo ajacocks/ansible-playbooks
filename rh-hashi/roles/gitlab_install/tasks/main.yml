@@ -22,9 +22,9 @@
         group: "{{ gitlab_install_gitlab_group }}"
         mode: '0644'
       with_fileglob:
-        - "{{ gitlab_install_local_cert_dir }}/{{ inventory_hostname_short }}*"
-        - "{{ gitlab_install_local_cert_dir }}/root*"
-        - "{{ gitlab_install_local_cert_dir }}/intermediate*"
+        - "{{ local_cert_dir }}/{{ inventory_hostname_short }}*"
+        - "{{ local_cert_dir }}/root*"
+        - "{{ local_cert_dir }}/intermediate*"
 
     - name: Copy ca cetificates to system trusted anchors
       ansible.builtin.copy:
@@ -122,5 +122,16 @@
         dest: "{{ gitlab_install_cert_dir }}/{{ inventory_hostname }}.key"
         state: link
         force: true
+
+- name: Flush handlers
+  become: true
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for gitlab nginx to be listening on port 443 on localhost again
+  ansible.builtin.wait_for:
+    port: 443
+    delay: 30
+    host: localhost
+    state: started
 
 ...

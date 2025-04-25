@@ -8,7 +8,7 @@ gitlab_install_gitlab_user_dir: /root/gitlab
 
 # Install user-provided certs
 gitlab_install_provide_certs: false
-gitlab_install_local_cert_dir: /tmp/target
+local_cert_dir: "{{ playbook_dir }}/data"
 gitlab_install_cert_dir: /etc/gitlab/ssl
 
 gitlab_install_installer_bundle: ansible-automation-platform-containerized-setup-bundle-2.5-11.1-x86_64.tar.gz

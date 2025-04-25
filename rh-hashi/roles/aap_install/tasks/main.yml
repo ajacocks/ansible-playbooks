@@ -21,9 +21,9 @@
         group: "{{ aap_install_aap_group }}"
         mode: '0644'
       with_fileglob:
-        - "{{ aap_install_local_cert_dir }}/{{ inventory_hostname_short }}*"
-        - "{{ aap_install_local_cert_dir }}/root*"
-        - "{{ aap_install_local_cert_dir }}/intermediate*"
+        - "{{ local_cert_dir }}/{{ inventory_hostname_short }}*"
+        - "{{ local_cert_dir }}/root*"
+        - "{{ local_cert_dir }}/intermediate*"
 
 
     - name: Copy ca cetificates to system trusted anchors
