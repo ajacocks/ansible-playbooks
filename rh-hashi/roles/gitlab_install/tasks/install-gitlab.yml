@@ -15,6 +15,7 @@
       environment:
         EXTERNAL_URL: "https://{{ inventory_hostname }}"
         GITLAB_ROOT_PASSWORD: "{{ gitlab_admin_password }}"
+        GITLAB_ROOT_EMAIL: "{{ email_address }}"
         GITLAB_EMAIL_FROM: "gitlab@{{ inventory_hostname }}"
       register: gitlab_install_result
       notify:

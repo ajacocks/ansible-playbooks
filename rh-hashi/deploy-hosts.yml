@@ -25,6 +25,21 @@
         hosted_zone_method: list_by_name
       register: hosted_zones
 
+    - name: Debug hosted_zones, default false
+      ansible.builtin.debug:
+        var: hosted_zones
+      when: debug | default(false)
+
+    - name: Debug hosted_zones (flattened), default false
+      ansible.builtin.debug:
+        var: hosted_zones.HostedZones | flatten(levels=1)
+      when: debug | default(false)
+
+    - name: Debug aws_domain, default false
+      ansible.builtin.debug:
+        var: aws_domain ~ '.'
+      when: debug | default(false)
+
     - name: Set r53_zone_id fact with hosted_zones zone ID based on name
       ansible.builtin.set_fact:
         r53_zone_id: "{{ item.Id | replace('/hostedzone/', '') }}"
@@ -143,7 +158,10 @@
         force: true
         mode: '0644'
 
-- name: Do power-install configuration
+    - name: Force inventory refresh
+      ansible.builtin.meta: refresh_inventory
+
+- name: Do post-install configuration
   hosts: aap_hashi
   become: true
 
@@ -156,5 +174,39 @@
         regexp: "^{{ ansible_default_ipv4.address }}"
         state: present
       become: true
+
+    # - name: Install postfix
+    #   ansible.builtin.package:
+    #     name:
+    #       - postfix
+    #       - python3-botocore
+    #       - python3-boto3
+    #     state: present
+
+    # - name: Ensure SES email identity exists
+    #   community.aws.ses_identity:
+    #     identity: "{{ email_address }}"
+    #     region: "{{ aws_region }}"
+    #     state: present
+    #   delegate_to: localhost
+    #   run_once: true
+
+    # - name: Configure null client for only sending outgoing emails
+    #   ansible.builtin.include_role:
+    #     name: redhat.rhel_system_roles.postfix
+    #   vars:
+    #     postfix_conf:
+    #       myhostname: "{{ inventory_hostname }}"
+    #       myorigin: "$mydomain"
+    #       inet_interfaces: loopback-only
+    #       mydestination: ""
+    #       relay_domains: "{{ lookup('ansible.builtin.pipe', 'postconf -h default_database_type') }}:/etc/postfix/relay_domains"
+    #     postfix_files:
+    #       - name: relay_domains
+    #         postmap: true
+    #         content: |
+    #           {{ domain_name }} OK
+    #           localdomain OK
+    #           localhost OK
 
 ...

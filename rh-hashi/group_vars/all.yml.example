@@ -3,6 +3,7 @@
 # Domain name for environment
 domain_name: CHANGEME.DOMAIN.NAME 
 ssh_key_name: ec2_key
+email_address: DEFAULT@DOMAIN.NAME # the email address used to send emails from the demo
 
 # AWS information
 # this section is only used by deploy-hosts.yml for AWS deployment. Other deployments don't need it.

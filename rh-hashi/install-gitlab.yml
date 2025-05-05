@@ -52,6 +52,20 @@
     #     - ""
     #     - ".pub"
   
+    # - name: Update GitLab root user email and ssh key
+    #   community.general.gitlab_user:
+    #     api_url: https://{{ inventory_hostname }}/
+    #     validate_certs: true
+    #     api_username: root
+    #     api_password: "{{ gitlab_install_password }}"
+    #     username: root
+    #     password: "{{ gitlab_install_password }}"
+    #     name: Administrator
+    #     email: "{{ email_address }}"
+    #     sshkey_name: root-ssh-key
+    #     sshkey_file: "{{ lookup( 'file', gitlab_localhost_priv_keyfile ~ '.pub' ) }}"
+    #     state: present
+
     - name: Create GitLab demo-users group
       community.general.gitlab_group:
         api_url: https://{{ inventory_hostname }}/
@@ -63,7 +77,17 @@
 
     - name: Create GitLab User for AAP
       community.general.gitlab_user:
-        api_url: https://{{ inventory_hostname }}//
+        api_url: https://{{ inventory_hostname }}/
+        validate_certs: true
+        api_username: root
+        api_password: "{{ gitlab_install_password }}"
+        name: AAP Demo User
+        username: aap
+        state: absent
+
+    - name: Create GitLab User for AAP
+      community.general.gitlab_user:
+        api_url: https://{{ inventory_hostname }}/
         validate_certs: true
         api_username: root
         api_password: "{{ gitlab_install_password }}"
@@ -76,5 +100,14 @@
         state: present
         group: demo-users
         access_level: owner
+        confirm: false
+
+    - name: Create GitLab Project
+      community.general.gitlab_project:
+        api_url: https://{{ inventory_hostname }}/
+        api_username: root
+        api_password: "{{ gitlab_install_password }}"
+        name: aap_demo
+        group: demo-users
 
 ...
