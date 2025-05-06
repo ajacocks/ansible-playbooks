@@ -25,6 +25,10 @@ ec2_priv_keyfile_name: "{{ ssh_key_name }}"
 #vault_install_tls_cert: /path/to/cert.pem
 #vault_install_tls_key: /path/to/key.pem
 
+# Override these role variables to specify a different number of unseal keys or a different success threshold
+#vault_key_count: 5
+#vault_key_threshold: 3
+
 # Override these role variables to attach a RHEL subscription to the AAP RHEL server
 #aap_provision_redhat_subscription: false
 #aap_provision_redhat_subscription_manifest: false
@@ -38,6 +42,12 @@ aap_install_common_password: CHANGEME
 # Override these role variables to install user-provided CA certs to the system trust store
 #aap_install_provide_certs: false
 #aap_install_custom_ca_cert: "custom-ca.crt"
+
+# Change these to reset aap installation details
+aap_dir: /home/aap
+aap_installer: ansible-automation-platform-containerized-setup-bundle-2.5-11.1-x86_64.tar.gz
+aap_user: aap
+aap_validate_certs: true
 
 # Override these role variables to attach a RHEL subscription to the GitLab RHEL server
 #gitlab_provision_redhat_subscription: false
@@ -71,24 +81,5 @@ local_certdir: "{{ playbook_dir }}/data"
 terraform:
   dir: "{{ ansible_user_dir }}/terraform"
   certdir: "{{ ansible_user_dir }}/terraform/certs"
-
-aap:
-  dir: "/home/aap/aap"
-  certdir: /home/aap/aap/certs
-  installer: ansible-automation-platform-containerized-setup-bundle-2.5-11.1-x86_64.tar.gz # or current ansible containerized bundle installer
-  user: aap
-  group: aap
-  admin_pass: <ansible admin password>
-  validate_certs: true
-
-installer_extracted: "{{ aap.installer | regex_replace('\\.tar.gz$', '') }}"
-
-vault:
-  unseal:
-    key_count: 5
-    threshold: 3
-  dir:
-    root_token: /root/.vault
-    unseal_key: /root/.vault
 
 ...

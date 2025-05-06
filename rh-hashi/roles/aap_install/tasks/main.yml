@@ -70,20 +70,4 @@
         group: "{{ aap_install_aap_group }}"
         mode: '0644'
 
-#    - name: Setup directory to allow systemctl to be run via sudo
-#      ansible.builtin.file:
-#        path: ~/.bashrc.d
-#        mode: '0755'
-#        owner: "{{ aap.user }}"
-#        group: "{{ aap.group }}"
-#        state: directory
-
-#    - name: Create bashrc profile for systemd
-#      ansible.builtin.copy:
-#        dest: ~/.bashrc.d/systemd
-#        content: "export XDG_RUNTIME_DIR=/run/user/$(id -u)\n"
-#        mode: '0644'
-#        owner: "{{ aap.user }}"
-#        group: "{{ aap.group }}"
-
 ...

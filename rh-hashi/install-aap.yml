@@ -12,7 +12,8 @@
   tags: aap
 
   vars:
-    ansible_user: "{{ aap.user }}"
+    ansible_user: "{{ aap_user }}"
+    installer_extracted: "{{ aap_installer | regex_replace('\\.tar.gz$', '') }}"
 
   tasks:
 
@@ -23,7 +24,7 @@
         - name: Run the Ansible Automation Platform setup program
           ansible.builtin.shell: "ansible-playbook -i inventory ansible.containerized_installer.install"
           args:
-            chdir: "{{ aap.dir }}/{{ installer_extracted }}"
+            chdir: "{{ aap_dir }}/{{ installer_extracted }}"
           async: 10000
           poll: 20
           changed_when: false
@@ -33,10 +34,10 @@
             url: https://{{ inventory_hostname }}:443/
             method: GET
             user: admin
-            password: "{{ aap.admin_pass }}"
+            password: "{{ aap_install_common_password }}"
             force_basic_auth: true
             status_code: 200
-            validate_certs: "{{ aap.validate_certs | default(omit) }}"
+            validate_certs: "{{ aap_validate_certs | default(omit) }}"
           register: __aap_setup_inst_result
           until: __aap_setup_inst_result.status == 200
           retries: 90
@@ -49,7 +50,7 @@
         - name: Upload the subscription manifest to the aap host
           ansible.builtin.copy:
             src: "{{ aap.license }}"
-            dest: "{{ aap.dir }}/aap-license.zip"
+            dest: "{{ aap_dir }}/aap-license.zip"
             mode: '0644'
           when: aap_provision_redhat_manifest | default(false)
 

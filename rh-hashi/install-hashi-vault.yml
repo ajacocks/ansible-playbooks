@@ -6,9 +6,6 @@
 #     - sub.uid
 #     - sub.gid
 #     - terraform.license
-#     - aap.installer    # if you want to use a newer version
-#     - aap.admin_pass
-#     - aap.admin_pass
 #     - vault.domain
 #     - vault.intermediate_name
 #     - vailt.resource_name
@@ -47,8 +44,8 @@
             state: directory
             mode: '0700'
           loop:
-            - "{{ vault.dir.root_token }}"
-            - "{{ vault.dir.unseal_key }}"
+            - "{{ vault_root_token_dir | default('/root/.vault') }}"
+            - "{{ vault_unseal_key_dir | default('/root/.vault') }}"
 
         - name: Check to see if vault is already initialized
           ansible.builtin.command:
@@ -71,7 +68,7 @@
 
         - name: Initialize Vault operator
           ansible.builtin.command:
-            cmd: "vault operator init -key-shares {{ vault.unseal.key_count }} -key-threshold {{ vault.unseal.threshold }} -format json"
+            cmd: "vault operator init -key-shares {{ vault_key_count | default('5') }} -key-threshold {{ vault_key_threshold | default('3') }} -format json"
           environment:
             VAULT_ADDR: "{{ _vault_url }}"
             VAULT_SKIP_VERIFY: "{{ vault_validate_certs | default(false) | ternary('false', 'true') }}"
@@ -90,14 +87,14 @@
         - name: Write unseal keys to files
           ansible.builtin.template:
             src: unseal_key.j2
-            dest: "{{ vault.dir.unseal_key }}/unseal_key_{{ item.0 }}"
+            dest: "{{ vault_unseal_key_dir | default('/root/.vault') }}/unseal_key_{{ item.0 }}"
             mode: '0600'
           with_indexed_items: "{{ vault_init_parsed.unseal_keys_hex }}"
 
         - name: Write root token to file
           ansible.builtin.copy:
             content: "{{ vault_init_parsed.root_token }}"
-            dest: "{{ vault.dir.root_token }}/rootkey"
+            dest: "{{ vault_root_token_dir | default('/root/.vault') }}/rootkey"
             mode: '0600'
 
     - name: Read keys from files
@@ -106,13 +103,13 @@
 
         - name: Read unseal key contents
           ansible.builtin.shell:
-            cmd: "cat {{ vault.dir.unseal_key }}/unseal_key_*"
+            cmd: "cat {{ vault_unseal_key_dir | default('/root/.vault') }}/unseal_key_*"
           register: unseal_keys_result
           changed_when: false
 
         - name: Get root token from file
           ansible.builtin.command:
-            cmd: cat "{{ vault.dir.root_token }}/rootkey"
+            cmd: cat "{{ vault_root_token_dir | default('/root/.vault') }}/rootkey"
           register: root_token_result
           changed_when: false
 
