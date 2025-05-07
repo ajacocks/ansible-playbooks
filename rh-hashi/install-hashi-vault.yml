@@ -35,7 +35,6 @@
         - name: Set Vault URL fact
           ansible.builtin.set_fact:
             _vault_url: https://127.0.0.1:{{ vault_install_api_port | default('8200') }}
-#            _vault_url: https://{{ _vault_fqdn }}:{{ vault_install_api_port | default('8200') }}
 
         - name: Create storage directories
           become: true
@@ -157,14 +156,14 @@
 
     - name: Create terraform project directories
       ansible.builtin.file:
-        path: "{{ terraform.certdir }}"
+        path: "{{ vault_terraform_certdir }}"
         state: directory
         mode: '0755'
 
     - name: Install terraform template to vault server
       ansible.builtin.template:
         src: vault.tf.j2
-        dest: "{{ terraform.dir }}/vault.tf"
+        dest: "{{ vault_terraform_dir }}/vault.tf"
         mode: '0644'
 
     - name: Install package dependencies
@@ -176,7 +175,7 @@
 
     - name: Deploy vault configuration with SSL certificates
       community.general.terraform:
-        project_path: "{{ terraform.dir }}"
+        project_path: "{{ vault_terraform_dir }}"
         force_init: true
         state: present
       register: tf_vault_result
@@ -196,22 +195,22 @@
 
         - name: Copy intermediate cert to certdir
           ansible.builtin.copy:
-            src: "{{ terraform.dir }}/intermediate.cert.pem"
-            dest: "{{ terraform.certdir }}/"
+            src: "{{ vault_terraform_dir }}/intermediate.cert.pem"
+            dest: "{{ vault_terraform_certdir }}/"
             mode: '0644'
             remote_src: true
 
         - name: Write ca certificate to file
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_root_cert_root_2025']['value'] }}"
-            dest: "{{ terraform.certdir }}/root_2025-ca.crt"
+            dest: "{{ vault_terraform_certdir }}/root_2025-ca.crt"
             mode: '0644'
           register: root_result
 
         - name: Write chain certificates to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + aws_domain | replace('.', '_') + '_ca_chain']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ aws_domain }}-ca_chain.crt"
+            dest: "{{ vault_terraform_certdir }}/{{ item }}.{{ aws_domain }}-ca_chain.crt"
             mode: '0644'
           loop:
             - aap
@@ -222,7 +221,7 @@
         - name: Write server certificates to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + aws_domain | replace('.', '_') + '_cert']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ aws_domain }}-server.crt"
+            dest: "{{ vault_terraform_certdir }}/{{ item }}.{{ aws_domain }}-server.crt"
             mode: '0644'
           loop:
             - aap
@@ -233,7 +232,7 @@
         - name: Write server keys to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + aws_domain | replace('.', '_') + '_private_key']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ aws_domain }}-server.key"
+            dest: "{{ vault_terraform_certdir }}/{{ item }}.{{ aws_domain }}-server.key"
             mode: '0644'
           loop:
             - aap
@@ -244,7 +243,7 @@
         - name: Write serial numbers to files
           ansible.builtin.copy:
             content: "{{ tf_vault_result['outputs']['vault_pki_secret_backend_cert_' + item + '_' + aws_domain | replace('.', '_') + '_serial_number']['value'] }}"
-            dest: "{{ terraform.certdir }}/{{ item }}.{{ aws_domain }}-serial.txt"
+            dest: "{{ vault_terraform_certdir }}/{{ item }}.{{ aws_domain }}-serial.txt"
             mode: '0644'
           loop:
             - aap
@@ -254,7 +253,7 @@
 
         - name: Find all certs
           ansible.builtin.find:
-            paths: "{{ terraform.certdir }}"
+            paths: "{{ vault_terraform_certdir }}"
             patterns: "*"
           register: cert_files
 

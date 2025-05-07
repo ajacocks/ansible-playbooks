@@ -29,6 +29,10 @@ ec2_priv_keyfile_name: "{{ ssh_key_name }}"
 #vault_key_count: 5
 #vault_key_threshold: 3
 
+# Installation directories for Vault TF config
+vault_terraform_dir: "{{ ansible_user_dir }}/terraform"
+vault_terraform_certdir: "{{ ansible_user_dir }}/terraform/certs"
+
 # Override these role variables to attach a RHEL subscription to the AAP RHEL server
 #aap_provision_redhat_subscription: false
 #aap_provision_redhat_subscription_manifest: false
@@ -77,9 +81,5 @@ terraform_install_admin_orgname: CHANGEME
 
 # where certificates are stored on the executing host
 local_certdir: "{{ playbook_dir }}/data"
-
-terraform:
-  dir: "{{ ansible_user_dir }}/terraform"
-  certdir: "{{ ansible_user_dir }}/terraform/certs"
 
 ...

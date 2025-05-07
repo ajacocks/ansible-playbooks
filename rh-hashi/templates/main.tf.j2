@@ -83,6 +83,22 @@ resource "aws_security_group" "web_sg" {
     description = "HTTPS access"
   }
 
+  # ingress {
+  #   from_port   = 587
+  #   to_port     = 587
+  #   protocol    = "tcp"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  #   description = "SMTP submission port"
+  # }
+
+  ingress {
+    from_port   = 8200
+    to_port     = 8200
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Hashicorp Vault UI port"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -128,6 +144,10 @@ resource "aws_route53_record" "www" {
   ttl     = 300
   records = [aws_eip.eip[count.index].public_ip]
 }
+
+# resource "aws_ses_email_identity" "{{ email_address | replace('@','_at_') | replace('.','_dot_') }}" {
+#   email = "{{ email_address }}"
+# }
 
 output "instance_public_ips" {
   value = aws_eip.eip.*.public_ip
