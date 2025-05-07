@@ -3,6 +3,7 @@
 
 - name: Create dir and copy over certs
   become: true
+  tags: terraform_install_prep
   when: terraform_install_provide_certs
   block:
 
@@ -47,9 +48,15 @@
 
     - name: Import pre-tasks
       become: true
+      tags: terraform_install_prerequisites
       ansible.builtin.import_tasks: install-prerequisites.yml
 
     - name: Install terraform
+      tags: terraform_install_install
       ansible.builtin.import_tasks: install-terraform.yml
+
+    - name: Configure terraform
+      tags: terraform_install_configure
+      ansible.builtin.import_tasks: config-terraform.yml
 
 ...
