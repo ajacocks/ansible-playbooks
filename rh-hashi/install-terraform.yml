@@ -13,6 +13,7 @@
 
   vars:
     ansible_user: "{{ terraform_user }}"
+    content_filename: "content-{{ ansible_date_time.epoch }}.tar.gz"
 
   roles:
     - name: terraform_install
@@ -24,5 +25,84 @@
         src: "{{ terraform_install_admin_token }}"
         dest: "{{ local_certdir }}/terraform-admin_token.txt"
         flat: true
+
+    - name: Create directory for terraform plan in {{ terraform_home_dir }}
+      ansible.builtin.file:
+        path: "{{ terraform_home_dir }}/plan"
+        state: directory
+        mode: '0755'
+
+    - name: Create archive from plan dir
+      community.general.archive:
+        path: "{{ terraform_home_dir }}/plan"
+        dest: "{{ terraform_home_dir }}/{{ content_filename }}"
+
+    - name: Copy webservers.tf to terraform host
+      ansible.builtin.copy:
+        src: webservers.tf
+        dest: "{{ terraform_home_dir }}/plan/main.tf"
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
+        mode: '0644'
+
+    - name: Lookup terraform workspace ID
+      ansible.builtin.uri:
+        url: "https://terraform.{{ install_domain }}/api/v2/organizations/{{ terraform_install_admin_orgname }}/workspaces/{{ terraform_install_admin_workspacename }}"
+        method: GET
+        headers:
+          Content-Type: application/vnd.api+json
+          Authorization: Bearer {{ admin_login }}
+        body_format: json
+        status_code:
+          - 200
+      register: admin_ws_info
+    
+    - name: Debug admin_ws_info ID
+      ansible.builtin.debug:
+        msg: "{{ admin_ws_info.json.data.id }}"
+      when: debug | default(false)
+
+    - name: Create a new configuration version
+      ansible.builtin.uri:
+        url: "https://terraform.{{ install_domain }}/api/v2/workspaces/{{ admin_ws_info.json.data.id }}/configuration-versions"
+        method: POST
+        headers:
+          Content-Type: application/vnd.api+json
+          Authorization: Bearer {{ admin_login }}
+        body:
+          data:
+            type: "configuration-versions"
+        body_format: json
+        status_code:
+          - 201
+      register: admin_config_version
+
+    - name: Debug admin_config_version
+      ansible.builtin.debug:
+        msg: "{{ admin_config_version }}"
+      when: debug | default(false)
+
+    - name: Debug admin_config_version URL
+      ansible.builtin.debug:
+        var: admin_config_version.json.data.attributes['upload-url']
+      when: debug | default(false)
+
+    - name: Upload archive to admin_config_version.json.data.attributes['upload-url']
+      ignore_errors: true
+      ansible.builtin.uri:
+        url: "{{ admin_config_version.json.data.attributes['upload-url'] }}"
+        method: PUT
+        headers:
+          Content-Type: application/octet-stream
+        src: "{{ terraform_home_dir }}/{{ content_filename }}"
+        remote_src: true
+        status_code:
+          - 200
+      register: config_vers_upload
+
+    - name: Debug config_vers_upload
+      ansible.builtin.debug:
+        var: config_vers_upload
+      when: debug | default(false)
 
 ...
