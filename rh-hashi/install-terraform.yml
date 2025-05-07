@@ -17,4 +17,12 @@
   roles:
     - name: terraform_install
 
+  tasks:
+
+    - name: Copy admin token back
+      ansible.builtin.fetch:
+        src: "{{ terraform_install_admin_token }}"
+        dest: "{{ local_certdir }}/terraform-admin_token.txt"
+        flat: true
+
 ...

@@ -131,7 +131,10 @@
         owner: "{{ terraform_user }}"
         group: "{{ terraform_group }}"
         mode: '0600'
-    
+
+- name: Read in the admin login file
+  block:
+
     - name: Get the status of the file {{ terraform_install_admin_login }}
       register: admin_login_file
       ansible.builtin.stat:
@@ -141,9 +144,6 @@
       ansible.builtin.debug:
         var: admin_login_file
       when: debug | default(false)
-
-- name: Read in the admin login file
-  block:
 
     - name: Read in the admin login file from the terraform host
       ansible.builtin.slurp:
@@ -189,6 +189,45 @@
       ansible.builtin.copy:
         content: "{{ create_org.json }}"
         dest: "{{ terraform_install_admin_org }}"
+        owner: "{{ terraform_user }}"
+        group: "{{ terraform_group }}"
+        mode: '0600'
+
+- name: Get the status of the file {{ terraform_install_admin_workspace }}
+  register: admin_workspace_file
+  ansible.builtin.stat:
+    path: "{{ terraform_install_admin_workspace }}"
+
+- name: Debug file status
+  ansible.builtin.debug:
+    var: admin_workspace_file
+  when: debug | default(false)
+
+- name: Create admin workspace
+  when: ( admin_login_file.stat.exists | bool ) and not ( admin_workspace_file.stat.exists | bool )
+  block:
+
+    - name: Create workspace for admin organization
+      ansible.builtin.uri:
+        url: "https://terraform.{{ install_domain }}/api/v2/organizations/{{ terraform_install_admin_orgname }}/workspaces"
+        method: POST
+        headers:
+          Content-Type: application/vnd.api+json
+          Authorization: "Bearer {{ admin_login }}"
+        body: '{ "data": { "attributes": { "name": "{{ terraform_install_admin_workspacename }}" }, "type": "workspaces" } }'
+        body_format: json
+        status_code: 201
+      register: create_workspace
+
+    - name: Debug workspace creation
+      ansible.builtin.debug:
+        msg: "{{ create_workspace }}"
+      when: debug | default(false)
+
+    - name: Write admin workspace data to a file
+      ansible.builtin.copy:
+        content: "{{ create_workspace.json }}"
+        dest: "{{ terraform_install_admin_workspace }}"
         owner: "{{ terraform_user }}"
         group: "{{ terraform_group }}"
         mode: '0600'
