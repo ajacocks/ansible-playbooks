@@ -12,6 +12,23 @@
         auto_attach: true
       when: terraform_provision_redhat_subscription
 
+    - name: Install EPEL repo gpg key
+      ansible.builtin.rpm_key:
+        key: "{{ terraform_provision_epel_gpg_key_url }}"
+        state: present
+
+    - name: Install EPEL repo package
+      ansible.builtin.dnf:
+        name: "{{ terraform_provision_epel_rpm_url }}"
+        state: present
+
+    - name: Install required packages for AWS API actions
+      ansible.builtin.package:
+        name:
+          - python3-botocore
+          - python3-boto3
+        state: present
+
     - name: Update all packages on system to current
       ansible.builtin.package:
         disablerepo: '*'

@@ -114,7 +114,7 @@ resource "aws_instance" "web" {
 }
 
 resource "aws_eip" "eip" {
-  count    = 4
+  count    = 2
   domain   = "vpc"
   instance = aws_instance.web[count.index].id
   tags = {
@@ -123,7 +123,7 @@ resource "aws_eip" "eip" {
 }
 
 resource "aws_route53_record" "www" {
-  count   = 4
+  count   = 2
   zone_id = "{{ r53_zone_id }}"
   name     = "${local.instance_names[count.index]}"
   type    = "A"

@@ -10,7 +10,10 @@ email_address: DEFAULT@DOMAIN.NAME # the email address used to send emails from 
 aws_profile: default                        # aws profile name from ~/.aws/credentials
 aws_ami: ami-003555ce5d8d2de2b              # RHEL-9.5.0_HVM-20250313-x86_64-0-Access2-GP3 us-east-2
 aws_type: m7a.xlarge                        # 4 vCPUs, 16 GiB RAM 4g EPYC
+aws_tiny_ami: ami-003555ce5d8d2de2b # RHEL-9.5.0_HVM-20250313-x86_64-0-Access2-GP3 us-east-2
+aws_tiny_type: t3a.micro            # 2 vCPUs, 1 GiB RAM 1g EPYC
 aws_domain: "{{ domain_name }}"
+aws_region: us-east-2
 ec2_priv_keyfile_name: "{{ ssh_key_name }}" 
 
 # Override these role variables to attach a RHEL subscription to the Vault RHEL server
