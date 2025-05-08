@@ -19,37 +19,30 @@
         msg: Terraform isn't installed. Please install Terraform before proceeding.
       when: terraform_path.rc != 0
 
-    - name: List all hosted zones
-      amazon.aws.route53_info:
-        query: hosted_zone
-        hosted_zone_method: list_by_name
-      register: hosted_zones
+    - name: Lookup the necessary AWS R53 hosted zone ID
+      block:
 
-    - name: Debug hosted_zones, default false
-      ansible.builtin.debug:
-        var: hosted_zones
-      when: debug | default(false)
+        - name: List all hosted zones
+          amazon.aws.route53_info:
+            query: hosted_zone
+            hosted_zone_method: list_by_name
+          register: hosted_zones
 
-    - name: Debug hosted_zones (flattened), default false
-      ansible.builtin.debug:
-        var: hosted_zones.HostedZones | flatten(levels=1)
-      when: debug | default(false)
+        - name: Debug hosted_zones, default false
+          ansible.builtin.debug:
+            var: hosted_zones
+          when: debug | default(false)
 
-    - name: Debug aws_domain, default false
-      ansible.builtin.debug:
-        var: aws_domain ~ '.'
-      when: debug | default(false)
+        - name: Set r53_zone_id fact with hosted_zones zone ID based on name
+          ansible.builtin.set_fact:
+            r53_zone_id: "{{ item.Id | replace('/hostedzone/', '') }}"
+          when: item.Name == ( aws_domain ~ '.' )
+          loop: "{{ hosted_zones.HostedZones | flatten(levels=1) }}"
 
-    - name: Set r53_zone_id fact with hosted_zones zone ID based on name
-      ansible.builtin.set_fact:
-        r53_zone_id: "{{ item.Id | replace('/hostedzone/', '') }}"
-      when: item.Name == ( aws_domain ~ '.' )
-      loop: "{{ hosted_zones.HostedZones | flatten(levels=1) }}"
-
-    - name: Debug r53_zone_id, default false
-      ansible.builtin.debug:
-        var: r53_zone_id
-      when: debug | default(false)
+        - name: Debug r53_zone_id, default false
+          ansible.builtin.debug:
+            var: r53_zone_id
+          when: debug | default(false)
 
     - name: Template main.tf.j2 to a temporary file name in the current directory
       ansible.builtin.template:

@@ -64,6 +64,11 @@ gitlab_install_password: CHANGEME
 # Override these role variables to install user-provided CA certs to the system trust store
 #gitlab_install_provide_certs: false
 
+# Change these to rename the terraform user or relocate its home directory
+terraform_group: tfe
+terraform_user: tfe
+terraform_home_dir: /home/tfe
+
 # Override these role variables to attach a RHEL subscription to the Terraform RHEL server
 #terraform_provision_redhat_subscription: false
 #terraform_provision_redhat_username: user@example.com
