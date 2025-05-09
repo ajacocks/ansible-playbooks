@@ -10,11 +10,16 @@ terraform {
 provider "aws" {
   access_key = "{{ aws_access_key_id }}"
   secret_key = "{{ aws_secret_access_key }}"
-  region     = "{{ aws_region }}"
+  region     = "{{ aws_demo_region }}"
 }
 
 locals {
   instance_names = ["www0", "www1"]
+}
+
+resource "aws_key_pair" "rh_hashi_keypair" {
+  key_name   = "rh_hashi_keypair"
+  public_key = "{{ lookup( 'file', ec2_priv_keyfile ~ '.pub' ) }}"
 }
 
 resource "aws_vpc" "main" {
@@ -27,7 +32,7 @@ resource "aws_vpc" "main" {
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "{{ aws_region }}a" # region
+  availability_zone       = "{{ aws_demo_region }}a" # region
   map_public_ip_on_launch = true
   tags = {
     Name = "public-subnet-a"
@@ -99,8 +104,8 @@ resource "aws_security_group" "web_sg" {
 
 resource "aws_instance" "web" {
   count                  = 2
-  ami                    = "{{ aws_tiny_ami }}"
-  instance_type          = "{{ aws_tiny_type }}"
+  ami                    = "{{ aws_demo_ami }}"
+  instance_type          = "{{ aws_demo_type }}"
   subnet_id              = aws_subnet.public_a.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = "rh_hashi_keypair"
