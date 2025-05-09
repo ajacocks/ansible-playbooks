@@ -6,7 +6,9 @@
 
   vars:
     ansible_user: "{{ terraform_user }}"
-    terraform_install_admin_login: "{{ local_certdir }}/terraform-admin_login.txt"
+    terraform_install_terraform_user_dir: "{{ terraform_home_dir }}/terraform"
+    terraform_install_terraform_data_dir: "{{ terraform_install_terraform_user_dir }}/data"
+    terraform_install_admin_login: "{{ terraform_install_terraform_user_dir }}/.admin_login.txt"
     content_filename: "content-{{ ansible_date_time.epoch }}.tar.gz"
     # aws_access_key_id: "{{ lookup('ansible.builtin.pipe', 'aws configure --profile sandbox2 get aws_access_key_id') }}"
     # aws_secret_access_key: "{{ lookup('ansible.builtin.pipe', 'aws configure --profile sandbox2 get aws_secret_access_key') }}"
@@ -15,10 +17,10 @@
   tasks:
 
     - name: Read in the admin login file
-      delegate_to: localhost
+      # delegate_to: localhost
       block:
 
-        - name: Get the status of the file {{ terraform_install_admin_login }}
+        - name: Get the status of the terraform admin login file
           register: admin_login_file
           ansible.builtin.stat:
             path: "{{ terraform_install_admin_login }}"
