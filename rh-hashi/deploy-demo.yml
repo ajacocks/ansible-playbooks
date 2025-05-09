@@ -8,8 +8,8 @@
     ansible_user: "{{ terraform_user }}"
     terraform_install_admin_login: "{{ local_certdir }}/terraform-admin_login.txt"
     content_filename: "content-{{ ansible_date_time.epoch }}.tar.gz"
-    aws_access_key_id: "{{ lookup('ansible.builtin.pipe', 'aws configure --profile sandbox2 get aws_access_key_id') }}"
-    aws_secret_access_key: "{{ lookup('ansible.builtin.pipe', 'aws configure --profile sandbox2 get aws_secret_access_key') }}"
+    # aws_access_key_id: "{{ lookup('ansible.builtin.pipe', 'aws configure --profile sandbox2 get aws_access_key_id') }}"
+    # aws_secret_access_key: "{{ lookup('ansible.builtin.pipe', 'aws configure --profile sandbox2 get aws_secret_access_key') }}"
     ec2_priv_keyfile: "{{ playbook_dir }}/{{ ec2_priv_keyfile_name }}"
 
   tasks:

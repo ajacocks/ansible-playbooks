@@ -6,7 +6,7 @@ ansible-navigator:
     rotate-artifacts-count: 10
   execution-environment:
     container-engine: podman
-    image: quay.io/jce-redhat/hashi-demo-ee:latest
+    image: quay.io/ajacocks/hashi-demo-ee:2025050907
     pull:
       policy: missing
   logging:
