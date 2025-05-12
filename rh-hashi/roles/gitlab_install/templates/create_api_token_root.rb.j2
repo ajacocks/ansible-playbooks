@@ -1,4 +1,0 @@
-user = User.find_by_username('root')
-token = user.personal_access_tokens.create(scopes: [:api], name: 'Ansible Automation token', expires_at: 365.days.from_now)
-token.set_token('{{ gitlab_admin_password }}')
-token.save!
