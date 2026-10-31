@@ -1,0 +1,13 @@
+---
+# Secret scanning before every commit. Set up once per clone with:
+#   pre-commit install
+# Scan the whole history by hand with:
+#   pre-commit run gitleaks --all-files
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+        # RHEL's system Go fails to build gitleaks (FIPS module), so let
+        # pre-commit fetch an upstream toolchain instead.
+        language_version: 1.25.4

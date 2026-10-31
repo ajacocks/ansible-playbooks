@@ -1,0 +1,13 @@
+# gitleaks settings for this repo: the default rules, plus an allowlist for
+# known-safe content.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known-safe content"
+paths = [
+  # SCAP Security Guide content from upstream; its example GRUB2 password
+  # hash and similar strings are not secrets.
+  '''^(lfs/)?files/rhel[0-9]+/ssg-rhel[0-9]+-ds\.xml''',
+  '''^(lfs/)?files/rhel[0-9]+/tailoring-xccdf\.xml''',
+]
